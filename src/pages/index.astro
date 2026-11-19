@@ -1,0 +1,8 @@
+---
+import { getCollection } from 'astro:content';
+import '../styles.css';
+const posts = (await getCollection('posts')).sort((a, b) => a.id.localeCompare(b.id));
+---
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Second Ink publishing test</title></head>
+<body><main><p class="label">Public sandbox</p><h1>Second Ink publishing test</h1><p>Commit a sample Word document or text PDF to the <code>posts/</code> folder to test the importer.</p>
+<ul>{posts.map((post) => <li><a href={`/posts/${post.id}/`}>{post.data.title}</a><p>{post.data.description}</p></li>)}</ul></main></body></html>

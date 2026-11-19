@@ -221,3 +221,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Second Ink sandbox output
+.data/
+.astro/
+dist/
+.netlify/
+public/word-images/
+public/document-pdfs/
+src/content/posts/_word/
+src/content/topics/_word/
