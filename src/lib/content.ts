@@ -1,4 +1,5 @@
-import { getCollection, type CollectionEntry } from 'astro:content';
+import { getCollection, getEntry, type CollectionEntry } from 'astro:content';
+import { journalAuthorId } from './journal-author.mjs';
 
 type Post = CollectionEntry<'posts'>;
 type ReadingPath = CollectionEntry<'series'>;
@@ -50,9 +51,10 @@ export async function getTopics() {
   return topics.sort((first, second) => first.data.name.localeCompare(second.data.name));
 }
 
-export async function getAuthors() {
-  const authors = await getCollection('authors');
-  return authors.sort((first, second) => first.data.name.localeCompare(second.data.name));
+export async function getJournalAuthor() {
+  const author = await getEntry('authors', journalAuthorId);
+  if (!author) throw new Error('Second Ink is missing its author profile.');
+  return author;
 }
 
 export async function getSeries() {

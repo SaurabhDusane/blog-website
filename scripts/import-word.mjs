@@ -9,6 +9,7 @@ import { createWordImportCache } from './word-import-cache.mjs';
 import { convertDocx } from './convert-docx.mjs';
 import { convertPdf } from './import-pdf.mjs';
 import { essayTopics, sortEssay } from './essay-classifier.mjs';
+import { journalAuthorId, legacyAuthorId } from '../src/lib/journal-author.mjs';
 import {
   committedDate, documentSources, editDate, metadataField, metadataFields, readLabelCorrections, readPdfMetadata, readSource,
   repeatedMetadataFields, validDate,
@@ -351,7 +352,7 @@ function editorialEntries(metadata, warnings, sourceIds) {
   };
 }
 
-function renderDocument(source, prepared, converted, authorIds, paths, sourceIds, corrections) {
+function renderDocument(source, prepared, converted, paths, sourceIds, corrections) {
   const { fragment, rawTitle } = prepared;
   const metadata = { ...prepared.metadata, ...corrections };
   const files = new Map(converted.images);
@@ -372,7 +373,6 @@ function renderDocument(source, prepared, converted, authorIds, paths, sourceIds
   const mood = metadata.mood?.toLowerCase();
   const providedMood = moods.has(mood);
   const selectedAuthor = slugify(metadata.author ?? '');
-  const author = authorIds.has(selectedAuthor) ? selectedAuthor : [...authorIds].sort()[0];
   const count = passages.reduce((total, text) => (
     total + [...segmenter.segment(text)].filter(({ isWordLike }) => isWordLike).length
   ), 0);
@@ -396,7 +396,9 @@ function renderDocument(source, prepared, converted, authorIds, paths, sourceIds
   if (metadata.date && !validDate(metadata.date)) warnings.push('The date header was invalid.');
   if ((metadata['source-url'] || metadata.source) && !originalSource) warnings.push('Source-url must be an absolute HTTP(S) URL.');
   if (metadata['archive-url'] && !archive) warnings.push('Archive-url must be an absolute HTTP(S) URL.');
-  if (metadata.author && !authorIds.has(selectedAuthor)) warnings.push('The author did not match a profile, so the default author was used.');
+  if (metadata.author && selectedAuthor !== journalAuthorId && selectedAuthor !== legacyAuthorId) {
+    warnings.push('Second Ink uses its owner byline for every upload.');
+  }
   if (mood && !providedMood) warnings.push('Mood must be reflective, practical, or curious.');
   const readingPaths = [...new Set((metadata['reading-paths'] ?? metadata.series ?? '').split(',').map((value) => slugify(value)).filter(Boolean))]
     .filter((id) => {
@@ -421,7 +423,7 @@ function renderDocument(source, prepared, converted, authorIds, paths, sourceIds
     data: {
       title,
       description,
-      author,
+      author: journalAuthorId,
       topics: [...tags.keys()],
       readingPaths,
       mood: assignedMood,
@@ -457,7 +459,7 @@ const [sources, reservedPosts, reservedTopics, authors, paths, sourceIds, state,
   }, ['./import-word.mjs', './essay-classifier.mjs', './essay-classifier-training.mjs', './convert-docx.mjs', './import-pdf.mjs', './pdf-worker.mjs', './document-input.mjs', './word-footnotes.mjs', './word-import-cache.mjs', '../package-lock.json']
     .map((file) => new URL(file, import.meta.url))),
 ]);
-if (!authors.size) throw new Error('Add an author profile before importing documents.');
+if (!authors.has(journalAuthorId)) throw new Error('Add the Second Ink author profile before importing documents.');
 
 const revision = git(root, ['rev-parse', 'HEAD']).trim() || null;
 const renamed = findRenames(root, state.revision, revision);
@@ -540,7 +542,7 @@ async function addPost(post) {
       generatedImages.add(name);
     }
   }
-  generatedPosts.set(data.slug + '.md', markdown(data, html));
+  generatedPosts.set(data.slug + '.md', markdown({ ...data, author: journalAuthorId }, html));
   for (const [slug, tag] of tags) {
     const name = slug + '.md';
     if (!reservedTopics.has(slug) && !generatedTopics.has(name)) {
@@ -607,7 +609,7 @@ for (const source of sources) {
       continue;
     }
     const corrections = await readLabelCorrections(root, source.labelsFile);
-    const post = renderDocument(source, prepared, converted, authors, paths, sourceIds, corrections);
+    const post = renderDocument(source, prepared, converted, paths, sourceIds, corrections);
     const legacy = legacyPosts.get(source.path);
     const hidden = visibility !== 'published';
     const allocation = existing || legacy || postSlug((hidden ? 'Draft ' : '') + post.data.title, sourceHash);

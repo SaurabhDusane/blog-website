@@ -19,7 +19,8 @@ import ReaderVoiceNote from "../../components/ReaderVoiceNote.astro";
 import RevisitEssay from "../../components/RevisitEssay.astro";
 import RevisitImpression from "../../components/RevisitImpression.astro";
 import SourceCard from "../../components/SourceCard.astro";
-import { draftsEnabled, getAuthors, getDraftPosts, getPosts, getRelatedPosts, getTopics, postPath, postRedirects } from "../../lib/content";
+import { draftsEnabled, getDraftPosts, getJournalAuthor, getPosts, getRelatedPosts, getTopics, postPath, postRedirects } from "../../lib/content";
+import { journalAuthorPath } from "../../lib/journal-author.mjs";
 import { postSocialImageAlt, postSocialImageKey } from "../../lib/post-social-image";
 import { wordRevisionDates } from "../../lib/revision-history";
 import "../../styles/reader.css";
@@ -53,8 +54,8 @@ const imported = documentSource ?? wordSource;
 const outline = (imported?.headings ?? headings).filter(({ depth }) => depth >= 2);
 const hasOutline = outline.length >= (imported ? 3 : 1);
 const hasNotes = !imported || imported.hasNotes;
-const [authors, topics, related, publishedPosts] = await Promise.all([
-  getAuthors(),
+const [author, topics, related, publishedPosts] = await Promise.all([
+  getJournalAuthor(),
   getTopics(),
   getRelatedPosts(post),
   post.data.connections?.length ? getPosts() : [],
@@ -69,7 +70,6 @@ const connections = (post.data.connections ?? []).flatMap(({ post: id, reason })
   return [{ title: target.data.title, href: postPath(target), reason }];
 });
 const otherRelated = related.filter((entry) => !connectedIds.has(entry.id));
-const author = authors.find((entry) => entry.id === post.data.author.id);
 const articleTopics = post.data.topics.flatMap((reference) => {
   const topic = topics.find((entry) => entry.id === reference.id);
   return topic ? [topic] : [];
@@ -80,7 +80,7 @@ const dateDisplay = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   timeZone: "UTC",
 });
-const email = [import.meta.env.PUBLIC_AUTHOR_EMAIL, author?.data.email]
+const email = [import.meta.env.PUBLIC_AUTHOR_EMAIL, author.data.email]
   .map((address) => address?.trim())
   .find((address) => address && /^[^\s@?&]+@[^\s@?&]+\.[^\s@?&]+$/.test(address));
 ---
@@ -102,7 +102,7 @@ const email = [import.meta.env.PUBLIC_AUTHOR_EMAIL, author?.data.email]
       <h1 id="reader-title">{title}</h1>
       {!beforeQuestion && <p class="reader-deck">{description}</p>}
       <div class="reader-meta">
-        {author && <span>By <a href={`/authors/${author.id}/`}>{author.data.name}</a></span>}
+        <span>By <a href={journalAuthorPath}>{author.data.name}</a></span>
         <time datetime={publishedAt.toISOString()}>{dateDisplay.format(publishedAt)}</time>
         {updatedAt && <span>Updated <time datetime={updatedAt.toISOString()}>{dateDisplay.format(updatedAt)}</time></span>}
         <span>{minutes} min read</span>

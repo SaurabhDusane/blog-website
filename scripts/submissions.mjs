@@ -133,7 +133,7 @@ async function readForm(request, contentType) {
   return new Response(new Blob(chunks), { headers: { 'Content-Type': contentType } }).formData();
 }
 
-export async function handleSubmission(request, route, storage) {
+export async function handleSubmission(request, route, storage, publishedPost) {
   const submission = submissions[route];
   const reply = (status, message, returnPath, extraHeaders) => {
     return respond(request, submission, status, message, returnPath, extraHeaders);
@@ -173,6 +173,7 @@ export async function handleSubmission(request, route, storage) {
   const { values, error, returnPath } = submission.parse(form);
   const destination = safeReturnPath ?? returnPath;
   if (error) return reply(422, error, destination);
+  if (publishedPost && !await publishedPost(values[0])) return reply(404, 'This piece is missing from the reading desk.');
 
   try {
     await storage[route](...values, new Date().toISOString());

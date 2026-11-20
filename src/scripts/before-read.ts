@@ -1,7 +1,8 @@
 import { readerIdentity, readReaderStorage, writeReaderStorage } from '../lib/reader-identity';
+import { readerApi } from '../lib/reader-api';
 import { stances, type Stance, type StanceCounts } from '../lib/stances';
 
-const api = '/api/stance/';
+const api = readerApi('stance');
 const choices = stances.map(({ id }) => id);
 
 interface StanceSnapshot {

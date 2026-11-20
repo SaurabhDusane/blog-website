@@ -3,6 +3,7 @@ import { track } from "../lib/analytics";
 import { copyText } from "../lib/clipboard";
 import { createQuoteImageDialog } from "../lib/quote-image";
 import { passageAnchor, passageTags } from "../lib/article-passages";
+import { readerApi } from "../lib/reader-api";
 import { initReaderListen } from "./reader-listen";
 
 const themeKey = "second-ink:theme";
@@ -502,7 +503,7 @@ function setupReader(reader: HTMLElement, prose: HTMLElement, postId: string, ti
     });
 
     try {
-      const response = await fetch(replyForm.action, { method: "POST", headers: { Accept: "application/json" }, body });
+      const response = await fetch(readerApi("reply"), { method: "POST", headers: { Accept: "application/json" }, body });
       const result: { ok?: boolean; message?: string } = await response.json();
       if (response.ok && result.ok) replyForm.reset();
       replyStatus.textContent = result.message ?? "Your reply couldn’t go through. It’s still in the box.";

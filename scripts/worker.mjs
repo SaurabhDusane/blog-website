@@ -3,6 +3,7 @@ import { createD1Storage } from './d1-storage.mjs';
 import { handleEditorialApi } from './editorial-api.mjs';
 import { handleEditorialPage } from './editorial-pages.mjs';
 import { handleEarlyReader } from './early-reader-api.mjs';
+import { createHostedReaderApi } from './hosted-reader-api.mjs';
 
 function decodeAsset(body) {
   const raw = atob(body);
@@ -61,6 +62,7 @@ function serveAsset(request, url, assets, redirects) {
 
 export function createWorker(assets, redirects = {}) {
   const catalog = () => parsePostCatalog(JSON.parse(assets['/posts/catalog.json']?.body ?? '[]'));
+  const handleHostedReader = createHostedReaderApi();
   return {
     async fetch(request, env, local) {
       const url = new URL(request.url);
@@ -72,7 +74,7 @@ export function createWorker(assets, redirects = {}) {
         exists: (pathname) => Object.hasOwn(assets, pathname) || Object.hasOwn(redirects, pathname),
         ip: local?.ip ?? request.headers.get('CF-Connecting-IP'),
       };
-      const editorial = await handleEarlyReader(request, url, context) ?? await handleEditorialApi(request, context)
+      const editorial = await handleHostedReader(request, url, context) ?? await handleEarlyReader(request, url, context) ?? await handleEditorialApi(request, context)
         ?? await handleEditorialPage(request, url, context, assets);
       if (editorial) return editorial;
       if (!isApiPath(url.pathname)) return serveAsset(request, url, assets, redirects);

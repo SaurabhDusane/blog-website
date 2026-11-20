@@ -2,7 +2,11 @@
 import Base from '../layouts/Base.astro';
 import ReaderVoiceNote from '../components/ReaderVoiceNote.astro';
 import RevisitEssay from '../components/RevisitEssay.astro';
+import { getJournalAuthor } from '../lib/content';
+import { journalAuthorPath } from '../lib/journal-author.mjs';
 import '../styles/reader.css';
+
+const author = await getJournalAuthor();
 ---
 
 <Base title="DESK-TITLE" description="DESK-DESCRIPTION" type="article" wide>
@@ -15,7 +19,10 @@ import '../styles/reader.css';
       <Fragment set:html={'DESK-TOPICS'} />
       <h1 id="reader-title">DESK-TITLE</h1>
       <p class="reader-deck">DESK-DESCRIPTION</p>
-      <div class="reader-meta"><time datetime="DESK-PUBLISHED">DESK-DATE</time><span>DESK-MINUTES min read</span><span class="reader-mood">DESK-MOOD</span></div>
+      <div class="reader-meta">
+        <span>By <a href={journalAuthorPath}>{author.data.name}</a></span>
+        <time datetime="DESK-PUBLISHED">DESK-DATE</time><span>DESK-MINUTES min read</span><span class="reader-mood">DESK-MOOD</span>
+      </div>
       <ReaderVoiceNote postId="DESK-SLUG" />
       <RevisitEssay postId="DESK-SLUG" title="DESK-TITLE" minutes="DESK-MINUTES" />
     </header>

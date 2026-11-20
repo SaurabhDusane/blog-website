@@ -1,10 +1,11 @@
 import { requestReadingProof } from '../lib/reading-proof';
+import { readerApi } from '../lib/reader-api';
 import { readerIdentity } from '../lib/reader-identity';
 import { reconsiderationChoices, reconsiderationMovements } from '../lib/reconsiderations';
 import { stances, type Stance } from '../lib/stances';
 import { getFeedbackToken } from '../lib/turnstile';
 
-const api = '/api/reconsideration/';
+const api = readerApi('reconsideration');
 const firstAnswers = stances.map(({ id }) => id);
 const nextAnswers = reconsiderationChoices.map(({ id }) => id);
 type SecondAnswer = typeof nextAnswers[number];

@@ -19,7 +19,7 @@ npm run build
 npm run preview
 ```
 
-The production preview serves the built site and handles reader feelings, newsletter signups, and private replies. For settings, create `.env` from `.env.example` if it’s missing. Set `SITE_URL` to the address readers use. Set `PUBLIC_AUTHOR_EMAIL` or the corresponding author’s `email` field if you prefer to receive replies by email.
+The production preview serves the built site and handles reader feelings, newsletter signups, and private replies. For settings, create `.env` from `.env.example` if it’s missing. Set `SITE_URL` to the address readers use. Set `PUBLIC_AUTHOR_EMAIL` or the `email` field in `src/content/authors/saurabh-dusane.md` if you prefer to receive replies by email.
 
 ## Publish a document
 
@@ -57,7 +57,7 @@ why-i-picked-this: I kept thinking about it on the walk home.
 - The first publication fixes the URL and publication date. Later edits show an update date. Renames preserve the URL when Git or identical file content identifies the move. When titles produce the same URL, the importer adds a numeric suffix. For reading paths, use existing IDs from `src/content/series/`.
 - Put a draft under `posts/drafts/` or use `status: draft`. `publish-date` sets the earliest eligible build time. Date-only schedules start at Phoenix midnight. An explicit offset sets a precise time, and the connected workflow checks hourly. The private review build includes drafts and scheduled notes.
 - Word’s headings, lists, emphasis, tables, quotes, and footnotes carry through to the site. Add image descriptions and use Word’s **References → Insert Footnote** for a margin note. The importer sizes supported images to WebP and makes an outline when at least three headings remain in the body. For PDFs, every successful import links to the original file, and complex layouts get an expandable viewer. A textless scan is reported and skipped. OCR is disabled.
-- Other Word fields include `archive-url` for a saved source copy, `claim` and `claim-question` for the poll, and `question` for the follow-up. `mood` accepts `reflective`, `practical`, or `curious`. `update` accepts `YYYY-MM-DD | your note`, and `author` selects an existing author ID.
+- Other Word fields include `archive-url` for a saved source copy, `claim` and `claim-question` for the poll, and `question` for the follow-up. `mood` accepts `reflective`, `practical`, or `curious`. `update` accepts `YYYY-MM-DD | your note`. Every essay uses Saurabh Dusane’s byline automatically.
 
 ### Connections, revisions, and Loose Threads
 
@@ -95,8 +95,8 @@ The conversion cache keeps a status and no document content for unchanged draft,
 
 ## Add an annotated MDX essay
 
-1. Copy an essay in `src/content/posts/` to a new file named for its permanent slug. Use `.md` for an essay with prose and links or `.mdx` for an essay with annotated margins.
-2. Fill in the title, one-line description, publication date, author ID, topic IDs, mood, and estimated reading time. The supported moods are `reflective`, `practical`, and `curious`. An author or topic ID is the filename from its collection without its extension.
+1. Create a file named for the essay’s permanent slug in `src/content/posts/`. Use `.md` for an essay with prose and links or `.mdx` for an essay with annotated margins.
+2. Fill in the title, one-line description, publication date, topic IDs, mood, and estimated reading time. The supported moods are `reflective`, `practical`, and `curious`. A topic ID is the filename from its collection without its extension. Omit `author` to use the journal’s owner byline.
 3. Write the essay below the front matter. Set `featured: true` on the current lead essay. Mark older leads `featured: false`. You can add `related` with a list of essay slugs in preferred order. Shared topics supply further links. For an optional cover, copy an image to `src/assets/` and add `image: ../../assets/your-image.webp` and a descriptive `imageAlt`.
 4. To put the essay on a reading path, add its slug to the ordered `posts` list in `src/content/series/`. Run `npm run check` and `npm run build` before publishing.
 
@@ -112,11 +112,11 @@ An experiment belongs where you can repeat it.
 </MarginNote>
 ```
 
-MDX posts can use `reflectionQuestion` and `sourceUrl` in front matter. The three annotated sample essays are *The case for a rough draft*, *Keep a friction log*, and *Who decides what comes next?*.
+MDX posts can use `reflectionQuestion` and `sourceUrl` in front matter. Starter essays and other sample content live in `src/examples/` outside the published collections.
 
 ### Reading editions, sources, and field notes
 
-- Create an `.md` file in `src/content/editions/` with `title`, `description`, `publishedAt`, `author`, and an ordered `posts` list. Each entry takes `post` with an essay slug and an optional `note` explaining why you paired it with the others. Put your introduction in the Markdown body. **Download newsletter draft** exports the introduction, ordered notes, and canonical links as Markdown.
+- Create an `.md` file in `src/content/editions/` with `title`, `description`, `publishedAt`, and an ordered `posts` list. Each entry takes `post` with an essay slug and an optional `note` explaining why you paired it with the others. Put your introduction in the Markdown body. **Download newsletter draft** exports the introduction, ordered notes, and canonical links as Markdown.
 - Define a reusable source in `src/content/sources/short-id.md` with `title` and `url`. You can add `author`, `publication`, `year`, and `archiveUrl`. In essay front matter, add `sources: [{ source: short-id, role: supports, note: 'What I took from this.' }]`. The roles are `supports`, `complicates`, and `background`. In MDX, import `SourceCitation` from `../../components/SourceCitation.astro` and place `<SourceCitation source="short-id" label="Read the source note" />` by the passage. In Word, use a `Source note: short-id | supports | What I took from this.` line per source. In PDF YAML, list those strings under `source-note`. The existing link checker covers references in published essays.
 - To ask for a private observation, set `fieldNotePrompt` in an essay’s front matter or `Field note prompt` in Word and PDF metadata. Readers can send one note per essay per browser and choose whether to permit an anonymous quote. Review it under **Reader responses → Reader field notes**. Review status and permission stay private. Notes are included in the private response export and backups.
 

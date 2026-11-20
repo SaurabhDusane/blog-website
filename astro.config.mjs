@@ -10,6 +10,10 @@ import { parseEnv } from 'node:util';
 const env = existsSync('.env') ? parseEnv(readFileSync('.env', 'utf8')) : {};
 const vercelSite = process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
 const site = process.env.SITE_URL || env.SITE_URL || vercelSite || process.env.URL || 'https://blog-website-cstz.netlify.app';
+const productionVercel = process.env.VERCEL_ENV === 'production'
+  && process.env.VERCEL_PROJECT_PRODUCTION_URL === 'blog-website-beta-pink.vercel.app';
+const readerApiOrigin = process.env.PUBLIC_READER_API_ORIGIN ?? env.PUBLIC_READER_API_ORIGIN
+  ?? (productionVercel ? 'https://second-ink-early-reader.tonedoak6.chatgpt.site' : '');
 const preview = process.env.SECOND_INK_INCLUDE_DRAFTS === '1';
 let redirectedPaths = new Set();
 
@@ -38,6 +42,7 @@ export default defineConfig({
   output: 'static',
   trailingSlash: 'always',
   devToolbar: { enabled: false },
+  vite: { define: { 'import.meta.env.PUBLIC_READER_API_ORIGIN': JSON.stringify(readerApiOrigin) } },
   markdown: { remarkPlugins: [remarkSearchPassages] },
   integrations: [
     mdx(),

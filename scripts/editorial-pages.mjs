@@ -3,6 +3,7 @@ import { parseFragment } from 'parse5';
 import { serveEditorialMedia } from './editorial-media.mjs';
 import { logOperation } from './operations-log.mjs';
 import { essayTopics } from './essay-classifier.mjs';
+import { journalAuthorPath } from '../src/lib/journal-author.mjs';
 
 const deskPost = /^\/posts\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\/index\.html|\/)?$/;
 const originalPath = /^\/document-originals\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/;
@@ -52,7 +53,7 @@ function feed(request, asset, rows, path) {
   return response(request, asset.body.replace('</urlset>', () => items + '</urlset>'), asset.type);
 }
 
-function archiveRows(page, rows, topic) {
+function archiveRows(page, rows, collection) {
   const template = /<template\b[^>]*\bid="desk-essay-row"[^>]*>([\s\S]*?)<\/template>/;
   const count = /(<p\b[^>]*\bdata-result-count\b[^>]*>)(\d+) essays?(<\/p>)/;
   if (!template.test(page)) return page;
@@ -65,7 +66,7 @@ function archiveRows(page, rows, topic) {
       field ? values[field] : placeholder.replace('0', String(minutes))
     ));
   }).join(''));
-  if (topic) return rendered.replace(/<p\b[^>]*\bdata-desk-essay-empty\b[^>]*>[^<]*<\/p>/, '');
+  if (collection) return rendered.replace(/<p\b[^>]*\bdata-desk-essay-empty\b[^>]*>[^<]*<\/p>/, '');
   return rendered.replace(count, (_match, start, base, end) => {
     const total = Number(base) + rows.length;
     return `${start}${total} ${total === 1 ? 'essay' : 'essays'}${end}`;
@@ -99,18 +100,19 @@ export async function handleEditorialPage(request, url, context, assets) {
   const original = originalPath.exec(pathname)?.[1];
   const isFeed = pathname === '/rss.xml' || pathname === '/sitemap-0.xml';
   const isArchive = pathname === '/explore/' || pathname === '/explore/index.json';
+  const isAuthor = pathname === journalAuthorPath;
   const topic = /^\/topics\/([a-z0-9-]+)\/$/.exec(pathname)?.[1];
   const isTopic = Boolean(topic && Object.hasOwn(essayTopics, topic));
-  if (!(isFeed || isArchive || isTopic || original || (post && post.length <= 80 && !context.exists(`/posts/${post}/`)))) return;
+  if (!(isFeed || isArchive || isTopic || isAuthor || original || (post && post.length <= 80 && !context.exists(`/posts/${post}/`)))) return;
   try {
-    if (isArchive || isTopic) {
+    if (isArchive || isTopic || isAuthor) {
       const asset = assets[pathname];
       if (!asset) return;
       const rows = (await context.storage.deskPublications({ includeBody: true }))
         .filter(({ slug, topics }) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
           && !context.exists(`/posts/${slug}/`) && (!isTopic || topics?.includes(topic)));
       if (!rows.length) return;
-      const body = pathname === '/explore/index.json' ? archiveIndex(asset.body, rows) : archiveRows(asset.body, rows, isTopic);
+      const body = pathname === '/explore/index.json' ? archiveIndex(asset.body, rows) : archiveRows(asset.body, rows, isTopic || isAuthor);
       return response(request, body, asset.type);
     }
     if (isFeed) {

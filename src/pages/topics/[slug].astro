@@ -13,4 +13,4 @@ export async function getStaticPaths() {
 
 const { topic, posts } = Astro.props as InferGetStaticPropsType<typeof getStaticPaths>;
 ---
-<CollectionIndex label="Topic" title={topic.data.name} description={topic.data.description} posts={posts} backHref="/explore/" backLabel="Explore essays" deskTopic />
+<CollectionIndex label="Topic" title={topic.data.name} description={topic.data.description} posts={posts} backHref="/explore/" backLabel="Explore essays" deskEssays />

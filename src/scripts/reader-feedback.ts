@@ -1,4 +1,5 @@
 import { feelingCount, feelingLabel, feelings, type Feeling, type FeelingCounts } from '../lib/feelings';
+import { readerApi, readerApiError, ReaderApiUnavailable } from '../lib/reader-api';
 import { readerIdentity, readReaderStorage, writeReaderStorage } from '../lib/reader-identity';
 import { requestReadingProof, type ReadingProof } from '../lib/reading-proof';
 import { getFeedbackToken } from '../lib/turnstile';
@@ -6,11 +7,11 @@ import { getFeedbackToken } from '../lib/turnstile';
 type FeedbackSnapshot = { ok: boolean; total: number; feelings: FeelingCounts; mine: Feeling };
 type FeedbackError = { ok: false; code?: string; message?: string };
 type FeedbackResult = FeedbackSnapshot | FeedbackError;
-const api = '/api/feedback/';
+const api = readerApi('feedback');
 const waitingMessage = 'Take a moment with the essay. The form will open here.';
 
-function hasMap(data: FeedbackResult): data is FeedbackSnapshot {
-  return 'feelings' in data && !!data.feelings && typeof data.total === 'number' && Number.isFinite(data.total);
+function hasMap(data: FeedbackResult | null): data is FeedbackSnapshot {
+  return !!data && 'feelings' in data && !!data.feelings && typeof data.total === 'number' && Number.isFinite(data.total);
 }
 
 function setupFeedback(section: HTMLElement) {
@@ -40,13 +41,23 @@ function setupFeedback(section: HTMLElement) {
   let gateTimer = 0;
   let proof: ReadingProof | undefined;
   let proofState: 'idle' | 'opening' | 'ready' | 'unavailable' = 'idle';
-  let proofError = '';
+  let proofError: Error | undefined;
+  let mapError: Error | undefined;
   let observer: IntersectionObserver | undefined;
   let focusWhenOpen = false;
 
   const tell = (message: string, error = false) => {
     if (status.textContent !== message) status.textContent = message;
     status.toggleAttribute('data-error', error);
+  };
+
+  const showError = (error: Error, retryText: string) => {
+    const canRetry = !(error instanceof ReaderApiUnavailable);
+    intro.hidden = !canRetry;
+    retry.hidden = !canRetry;
+    retry.disabled = false;
+    retry.textContent = retryText;
+    tell(error.message, canRetry);
   };
 
   const remaining = () => {
@@ -57,11 +68,14 @@ function setupFeedback(section: HTMLElement) {
 
   const renderGate = () => {
     window.clearTimeout(gateTimer);
-    if (busy || !map.hidden || !reachedEnd) return;
-    if (proofState === 'unavailable') {
-      retry.hidden = false;
-      retry.disabled = false;
-      tell(proofError, true);
+    if (busy || !map.hidden) return;
+    if (mapError) {
+      showError(mapError, 'Try opening the map again');
+      return;
+    }
+    if (!reachedEnd) return;
+    if (proofState === 'unavailable' && proofError) {
+      showError(proofError, 'Try opening the form again');
       return;
     }
     if (!proof || remaining() > 0) {
@@ -85,7 +99,7 @@ function setupFeedback(section: HTMLElement) {
     const identity = readerIdentity();
     if (!identity) {
       proofState = 'unavailable';
-      proofError = 'This browser couldn’t open the response form. Try a secure connection.';
+      proofError = new ReaderApiUnavailable('Open Second Ink over a secure connection to leave a feeling.');
       renderGate();
       return;
     }
@@ -98,7 +112,7 @@ function setupFeedback(section: HTMLElement) {
       proofState = 'ready';
     } catch (error) {
       proofState = 'unavailable';
-      proofError = error instanceof Error ? error.message : 'The form didn’t open. Give it another try in a moment.';
+      proofError = error instanceof Error ? error : new Error('The response form didn’t open. Give it another try in a moment.');
     } finally {
       renderGate();
     }
@@ -176,11 +190,13 @@ function setupFeedback(section: HTMLElement) {
     if (focus) heading.focus();
   };
 
-  const restoreMap = async () => {
+  const restoreMap = async (focus = false) => {
     if (busy || !map.hidden) return;
     const identity = readerIdentity(false);
     if (!identity || !readReaderStorage(flag)) return;
     busy = true;
+    mapError = undefined;
+    retry.disabled = true;
     form.hidden = true;
     tell('Unfolding the feeling map…');
     try {
@@ -189,22 +205,23 @@ function setupFeedback(section: HTMLElement) {
         cache: 'no-store',
         signal: AbortSignal.timeout(10000),
       });
-      const data: FeedbackResult = await response.json();
+      const data: FeedbackResult | null = await response.json().catch(() => null);
       if (response.ok && hasMap(data)) {
         tell('');
-        showMap(data);
-      } else if (response.status === 404) {
+        showMap(data, focus);
+      } else if (response.status === 404 && data && 'code' in data && data.code === 'no-response') {
         writeReaderStorage(flag, '');
+        retry.hidden = true;
         tell('');
       } else {
-        throw new Error('Feeling map unavailable');
+        throw readerApiError(response, data, 'The feeling map didn’t open. Try again in a moment.');
       }
-    } catch {
-      tell('The feeling map didn’t open. Try again in a moment.', true);
+    } catch (error) {
+      mapError = error instanceof Error ? error : new Error('The feeling map didn’t open. Try again in a moment.');
     } finally {
       busy = false;
       if (map.hidden) {
-        watchArticle();
+        if (!mapError) watchArticle();
         renderGate();
       }
     }
@@ -219,8 +236,12 @@ function setupFeedback(section: HTMLElement) {
     if (event.key === flag && event.newValue) void restoreMap();
   });
   retry.addEventListener('click', () => {
+    if (mapError) {
+      void restoreMap(true);
+      return;
+    }
     focusWhenOpen = true;
-    proofError = '';
+    proofError = undefined;
     void openProof(true);
   });
 
@@ -270,7 +291,7 @@ function setupFeedback(section: HTMLElement) {
       } else if ('code' in data && (data.code === 'reading-proof' || data.code === 'reading-time')) {
         form.hidden = true;
         proofState = 'unavailable';
-        proofError = 'That reading check expired. Your note is still here if you want to retry.';
+        proofError = new Error('That reading check expired. Your note is still here if you want to retry.');
         focusWhenOpen = true;
       } else {
         tell('message' in data && data.message ? data.message : 'Your feeling didn’t reach the desk. Try again.', true);

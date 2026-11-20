@@ -645,12 +645,17 @@ async function handleEssaySort(request) {
 
 export async function handleApi(request, context) {
   const route = routeName(new URL(request.url).pathname);
-  if (route === 'newsletter' || route === 'reply') {
+  if (route === 'newsletter' || (route === 'reply' && !context.publicRelay)) {
     return handleSubmission(request, route, context.storage);
   }
   if (!route) return reject(404, 'This piece slipped out of the stack.', 'not-found');
   if (!sameOrigin(request)) return reject(403, 'Open the form from Second Ink and try again.', 'origin');
   try {
+    if (route === 'reply') {
+      const limited = await useRateSlot(context.storage, 'public-reply', context.ip, hour, 6, 18, Date.now());
+      return limited ?? await handleSubmission(request, route, context.storage,
+        async (post) => (await getCatalog(context.catalog)).has(post));
+    }
     if (route === 'health') {
       if (request.method !== 'GET') return methodNotAllowed('GET');
       await context.storage.checkResponseStorage();

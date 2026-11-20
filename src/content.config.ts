@@ -2,12 +2,15 @@ import { defineCollection, reference, z } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { sources, sourceAnnotations } from './lib/source-schema';
 import { questions } from './lib/question-schema';
+import { journalAuthorId, legacyAuthorId } from './lib/journal-author.mjs';
 
 const locale = z.string().default('en');
 const httpUrl = z.string().url().refine((url) => /^https?:\/\//i.test(url));
 const readingLink = z.union([httpUrl, z.string().regex(/^\/(?!\/)[^\\\s]*$/)]);
 const simpleId = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const documentOutline = z.array(z.object({ depth: z.number().int().min(2).max(6), slug: simpleId, text: z.string() }));
+const journalAuthor = z.enum([journalAuthorId, legacyAuthorId]).default(journalAuthorId)
+  .transform(() => journalAuthorId).pipe(reference('authors'));
 
 const posts = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/posts' }),
@@ -16,7 +19,7 @@ const posts = defineCollection({
     description: z.string(),
     publishedAt: z.coerce.date(),
     updatedAt: z.coerce.date().optional(),
-    author: reference('authors'),
+    author: journalAuthor,
     topics: z.array(reference('topics')).default([]),
     readingPaths: z.array(simpleId).optional(),
     looseThread: z.boolean().optional(),
@@ -121,7 +124,7 @@ const editions = defineCollection({
     title: z.string().trim().min(1).max(180),
     description: z.string().trim().min(1).max(450),
     publishedAt: z.coerce.date(),
-    author: reference('authors'),
+    author: journalAuthor,
     posts: z.array(z.object({ post: simpleId, note: z.string().trim().min(1).max(600).optional() })).min(1),
     locale,
   }),

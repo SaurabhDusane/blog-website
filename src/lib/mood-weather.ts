@@ -1,4 +1,5 @@
 import type { FeelingCounts } from './feelings';
+import { readerApi } from './reader-api';
 
 export interface MoodWeather {
   totals: FeelingCounts;
@@ -7,7 +8,7 @@ export interface MoodWeather {
 }
 
 export async function readMoodWeather(): Promise<MoodWeather> {
-  const response = await fetch('/api/moods/', { cache: 'no-store' });
+  const response = await fetch(readerApi('moods'), { cache: 'no-store' });
   if (!response.ok) throw new Error('Reader feelings are unavailable.');
   const data = await response.json();
   if (data?.ok !== true || !data.totals || !data.byPost) throw new Error('Reader feelings are unavailable.');

@@ -12,10 +12,10 @@ interface Props {
   backHref: string;
   backLabel: string;
   ordered?: boolean;
-  deskTopic?: boolean;
+  deskEssays?: boolean;
 }
 
-const { label, title, description, posts, backHref, backLabel, ordered = false, deskTopic = false } = Astro.props;
+const { label, title, description, posts, backHref, backLabel, ordered = false, deskEssays = false } = Astro.props;
 const List = ordered ? 'ol' : 'ul';
 ---
 
@@ -26,13 +26,13 @@ const List = ordered ? 'ol' : 'ul';
     <h1>{title}</h1>
     <p class="lead">{description}</p>
     <slot />
-    {(posts.length > 0 || deskTopic) && <List class="editorial-list" role="list">
-      {deskTopic && <template id="desk-essay-row">
+    {(posts.length > 0 || deskEssays) && <List class="editorial-list" role="list">
+      {deskEssays && <template id="desk-essay-row">
         <EssayRow href="/posts/DESK-ROW-SLUG/" title="DESK-ROW-TITLE" description="DESK-ROW-DESCRIPTION" minutes={0} mood="DESK-ROW-MOOD" />
       </template>}
       {posts.map((post) => <EssayRow href={postPath(post)} title={post.data.title} description={post.data.description} minutes={post.data.minutes} mood={post.data.mood} />)}
     </List>}
-    {posts.length === 0 && <p data-desk-essay-empty={deskTopic || undefined}>The first essay for this page is still on the desk.</p>}
+    {posts.length === 0 && <p data-desk-essay-empty={deskEssays || undefined}>The first essay for this page is still on the desk.</p>}
   </section>
 </Base>
 

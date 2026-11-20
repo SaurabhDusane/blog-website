@@ -1,3 +1,5 @@
+import { readerApi, readerApiError } from './reader-api';
+
 export type ReadingProof = { proof: string; readyAt: number; turnstileSiteKey?: string };
 
 // Both end-of-essays activities can use the same short-lived reading check.
@@ -9,9 +11,9 @@ export function requestReadingProof(postId: string, identity: string, renew = fa
   const previous = checks.get(key);
   if (!renew && previous && startedAt - previous.startedAt < 23 * 60 * 60 * 1000) return previous.answer;
 
-  const fallback = 'The reading check didn’t open. Give it another try in a moment.';
+  const fallback = 'The response form didn’t open. Give it another try in a moment.';
   const answer: Promise<ReadingProof> = (async () => {
-    const response = await fetch('/api/reading/', {
+    const response = await fetch(readerApi('reading'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Second-Ink-Reader': identity },
       body: JSON.stringify({ postId }),
@@ -19,7 +21,7 @@ export function requestReadingProof(postId: string, identity: string, renew = fa
     }).catch(() => { throw new Error(fallback); });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || typeof data?.proof !== 'string' || !Number.isFinite(data.waitMs)) {
-      throw new Error(typeof data?.message === 'string' ? data.message : fallback);
+      throw readerApiError(response, data, fallback);
     }
     return {
       proof: data.proof,

@@ -1,16 +1,18 @@
 ---
 import type { InferGetStaticPropsType } from 'astro';
 import CollectionIndex from '../../components/CollectionIndex.astro';
-import { getAuthors, getPosts } from '../../lib/content';
+import { getJournalAuthor, getPosts } from '../../lib/content';
+import { journalAuthorPath, legacyAuthorId } from '../../lib/journal-author.mjs';
 
 export async function getStaticPaths() {
-  const [authors, posts] = await Promise.all([getAuthors(), getPosts()]);
-  return authors.map((author) => ({
-    params: { slug: author.id },
-    props: { author, posts: posts.filter(({ data }) => data.author.id === author.id) },
-  }));
+  const [author, posts] = await Promise.all([getJournalAuthor(), getPosts()]);
+  return [
+    { params: { slug: author.id }, props: { author, posts, redirect: false } },
+    { params: { slug: legacyAuthorId }, props: { author, posts: [], redirect: true } },
+  ];
 }
 
-const { author, posts } = Astro.props as InferGetStaticPropsType<typeof getStaticPaths>;
+const { author, posts, redirect } = Astro.props as InferGetStaticPropsType<typeof getStaticPaths>;
+if (redirect) return Astro.redirect(journalAuthorPath, 301);
 ---
-<CollectionIndex label={author.data.role} title={author.data.name} description={author.data.bio} posts={posts} backHref="/explore/" backLabel="Explore essays" />
+<CollectionIndex label={author.data.role} title={author.data.name} description={author.data.bio} posts={posts} backHref="/explore/" backLabel="Explore essays" deskEssays />

@@ -9,13 +9,13 @@ const questions = await questionEntries();
 <Base title="Questions" description="Questions I keep coming back to across essays.">
   <div class="wrap discovery">
     <header class="discovery__header"><h1>Questions</h1><p>Some questions need more than one essay. Follow one to see where I take it next.</p></header>
-    <ul class="question-index" role="list">
+    {questions.length > 0 ? <ul class="question-index" role="list">
       {questions.map(({ question, entries }) => <li data-question-entry>
         <h2><a href={questionPath(question)}>{question.data.title}</a></h2>
         <p>{question.data.description}</p>
         <FollowQuestion id={question.id} essays={entries.map(({ post }) => post.id)} />
       </li>)}
-    </ul>
+    </ul> : <p>The first question is still taking shape.</p>}
   </div>
 </Base>
 

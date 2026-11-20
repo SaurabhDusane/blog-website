@@ -23,7 +23,9 @@ for (const path of paths) {
 const projectId = process.argv[2];
 if (projectId && !/^appgprj_[a-z0-9]+$/i.test(projectId)) throw Error('Pass the existing review project ID.');
 for (const directory of ['.openai/', 'dist/server/', 'dist/.openai/']) mkdirSync(new URL(directory, checkout), { recursive: true });
-for (const file of ['early-reader-site.mjs', 'early-reader-relay.mjs']) copyFileSync(new URL(`scripts/${file}`, root), new URL(file, checkout));
+for (const file of ['early-reader-site.mjs', 'early-reader-relay.mjs', 'public-reader-relay.mjs', 'reader-crypto.mjs']) {
+  copyFileSync(new URL(`scripts/${file}`, root), new URL(file, checkout));
+}
 writeFileSync(new URL('.gitignore', checkout), 'dist/\n');
 writeFileSync(new URL('reader-assets.json', checkout), JSON.stringify(assets));
 if (projectId) {

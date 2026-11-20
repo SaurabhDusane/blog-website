@@ -3,5 +3,12 @@
   "framework": "astro",
   "buildCommand": "npm run build:netlify",
   "outputDirectory": ".netlify-output",
-  "installCommand": "npm ci"
+  "installCommand": "npm ci",
+  "redirects": [
+    {
+      "source": "/authors/mara-ellis",
+      "destination": "/authors/saurabh-dusane/",
+      "permanent": true
+    }
+  ]
 }

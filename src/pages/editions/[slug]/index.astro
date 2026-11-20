@@ -4,17 +4,18 @@ import { render } from 'astro:content';
 import Base from '../../../layouts/Base.astro';
 import CopyTextDialog from '../../../components/CopyTextDialog.astro';
 import EssayRow from '../../../components/EssayRow.astro';
-import { getAuthors, getPosts, postPath } from '../../../lib/content';
+import { getJournalAuthor, getPosts, postPath } from '../../../lib/content';
+import { journalAuthorPath } from '../../../lib/journal-author.mjs';
 import { editionDate, editionEssays, editionPath, getEditions } from '../../../lib/editions';
 
 export async function getStaticPaths() {
-  const [editions, posts, authors] = await Promise.all([getEditions(), getPosts(), getAuthors()]);
+  const [editions, posts, author] = await Promise.all([getEditions(), getPosts(), getJournalAuthor()]);
   return editions.map((edition) => ({
     params: { slug: edition.id },
     props: {
       edition,
       essays: editionEssays(edition, posts),
-      author: authors.find(({ id }) => id === edition.data.author.id),
+      author,
     },
   }));
 }
@@ -34,7 +35,7 @@ const minutes = essays.reduce((sum, { entry }) => sum + entry.data.minutes, 0);
       <p class="lead">{description}</p>
       <div class="edition-meta">
         <time datetime={publishedAt.toISOString()}>{editionDate.format(publishedAt)}</time>
-        {author && <span>Selected by <a href={'/authors/' + author.id + '/'}>{author.data.name}</a></span>}
+        <span>Selected by <a href={journalAuthorPath}>{author.data.name}</a></span>
         {essays.length > 0 && <span>{essays.length} {essays.length === 1 ? 'essay' : 'essays'} · {minutes} min</span>}
       </div>
     </header>

@@ -65,7 +65,7 @@ if (!assets['/'] || !assets['/404.html']) {
 let redirects = {};
 try {
   const rules = readFileSync(join(distPath, '_redirects'), 'utf8');
-  const aliases = rules.split(/\r?\n/).map((line) => line.match(/^(\/posts\/[a-z0-9-]+\/) (\/posts\/[a-z0-9-]+\/) 301!$/));
+  const aliases = rules.split(/\r?\n/).map((line) => line.match(/^(\/(?:posts|authors)\/[a-z0-9-]+\/) (\/(?:posts|authors)\/[a-z0-9-]+\/) 301!$/));
   redirects = Object.fromEntries(aliases.filter((rule) => rule && assets[rule[2]]).map((rule) => [rule[1], rule[2]]));
 } catch (error) {
   if (error.code !== 'ENOENT') throw error;

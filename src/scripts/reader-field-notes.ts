@@ -1,8 +1,9 @@
 import { readerIdentity } from '../lib/reader-identity';
+import { readerApi } from '../lib/reader-api';
 import { requestReadingProof } from '../lib/reading-proof';
 import { getFeedbackToken } from '../lib/turnstile';
 
-const api = '/api/field-notes/';
+const api = readerApi('field-notes');
 const fallback = 'Your note didn’t reach the desk. Try sending it again.';
 
 function setupFieldNote(section: HTMLDetailsElement) {
