@@ -9,6 +9,11 @@
       "source": "/authors/mara-ellis",
       "destination": "/authors/saurabh-dusane/",
       "permanent": true
+    },
+    {
+      "source": "/authors/mara-ellis/",
+      "destination": "/authors/saurabh-dusane/",
+      "permanent": true
     }
   ]
 }
