@@ -1,0 +1,245 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import EssayRow from './EssayRow.astro';
+import { postPath } from '../lib/content';
+
+type Essay = CollectionEntry<'posts'>;
+interface Props {
+  posts: Essay[];
+  questions: CollectionEntry<'authors'>['data']['deskQuestions'];
+}
+
+const { posts, questions } = Astro.props;
+const essays = new Map(posts.map((post) => [post.id, post]));
+const choices = new Map<string, { post: Essay; label: string; question: string }>();
+for (const { post, label, question } of questions) {
+  const essay = essays.get(post);
+  if (essay) choices.set(post, { post: essay, label, question });
+}
+for (const post of posts) {
+  if (choices.size >= 4) break;
+  if (!choices.has(post.id)) choices.set(post.id, { post, label: post.data.title, question: post.data.title });
+}
+const opening = [...choices.values()][0];
+---
+
+<div data-author-desk>
+  <section class="question-desk" data-question-desk hidden={!opening} aria-labelledby="question-desk-heading">
+    <div class="question-desk__index">
+      <h2 id="question-desk-heading">Pick a question.</h2>
+      <ul class="question-desk__list" aria-label="Places to start" data-desk-choices>
+        {[...choices.values()].map(({ post, label, question }) => (
+          <li>
+            <a href={postPath(post)} data-desk-fallback>{label}</a>
+            <button type="button" data-desk-option={post.id} data-desk-question={question}
+              aria-pressed={post.id === opening?.post.id ? 'true' : 'false'} aria-controls="desk-essay" hidden>
+              {label}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div class="question-desk__actions">
+        <button class="desk-draw" type="button" data-desk-draw hidden>Pick for me</button>
+        <a class="text-link" data-desk-resume hidden>Continue reading</a>
+      </div>
+    </div>
+    <article class="desk-sheet" id="desk-essay" data-desk-paper aria-labelledby="desk-essay-title">
+      <span class="desk-sheet__time" data-desk-time>{opening && `${opening.post.data.minutes} min read`}</span>
+      <h3 id="desk-essay-title" data-desk-title>{opening?.question}</h3>
+      <p class="desk-sheet__description" data-desk-description>{opening?.post.data.description}</p>
+      <a class="button" href={opening && postPath(opening.post)} data-desk-read>Read the essay</a>
+    </article>
+    <p class="sr-only" role="status" data-desk-status></p>
+  </section>
+
+  <section class="author-archive" aria-labelledby="author-archive-heading">
+    <h2 id="author-archive-heading">All my essays</h2>
+    <ul class="editorial-list" role="list" data-author-archive>
+      <template id="desk-essay-row">
+        <EssayRow href="/posts/DESK-ROW-SLUG/" title="DESK-ROW-TITLE" description="DESK-ROW-DESCRIPTION" minutes={0} mood="DESK-ROW-MOOD" />
+      </template>
+      {posts.map((post) => <EssayRow href={postPath(post)} title={post.data.title} description={post.data.description} minutes={post.data.minutes} mood={post.data.mood} />)}
+    </ul>
+    {posts.length === 0 && <p data-desk-essay-empty>The first essay is still on the desk.</p>}
+  </section>
+</div>
+
+<script>
+  import { libraryChangeEvent, libraryKey, readLibrary } from '../lib/reader-state';
+
+  const root = document.querySelector<HTMLElement>('[data-author-desk]');
+  if (root) {
+    const desk = root.querySelector<HTMLElement>('[data-question-desk]')!;
+    const list = desk.querySelector<HTMLUListElement>('[data-desk-choices]')!;
+    const draw = desk.querySelector<HTMLButtonElement>('[data-desk-draw]')!;
+    const resume = desk.querySelector<HTMLAnchorElement>('[data-desk-resume]')!;
+    const paper = desk.querySelector<HTMLElement>('[data-desk-paper]')!;
+    const title = paper.querySelector<HTMLElement>('[data-desk-title]')!;
+    const description = paper.querySelector<HTMLElement>('[data-desk-description]')!;
+    const time = paper.querySelector<HTMLElement>('[data-desk-time]')!;
+    const read = paper.querySelector<HTMLAnchorElement>('[data-desk-read]')!;
+    const status = desk.querySelector<HTMLElement>('[data-desk-status]')!;
+    const essays = new Map([...root.querySelectorAll('[data-author-archive] .essay-row')].flatMap((row) => {
+      const link = row.querySelector<HTMLAnchorElement>('.essay-row__title');
+      const path = link?.getAttribute('href') ?? '';
+      const id = /^\/posts\/([a-z0-9]+(?:-[a-z0-9]+)*)\/$/.exec(path)?.[1];
+      if (!id || !link) return [];
+      return [[id, {
+        path, title: link.textContent?.trim() ?? '',
+        description: row.querySelector('.essay-row__description')?.textContent?.trim() ?? '',
+        time: row.querySelector('.essay-row__time')?.textContent?.trim() ?? '',
+      }] as const];
+    }));
+    const options = [...list.querySelectorAll<HTMLButtonElement>('[data-desk-option]')];
+    let active = '';
+
+    function choose(id: string, announce = false) {
+      const essay = essays.get(id);
+      if (!essay) return;
+      active = id;
+      const selected = options.find(({ dataset }) => dataset.deskOption === id);
+      for (const option of options) option.setAttribute('aria-pressed', String(option === selected));
+      const headline = selected?.dataset.deskQuestion || essay.title;
+      title.textContent = headline;
+      description.textContent = essay.description;
+      description.hidden = !essay.description;
+      time.textContent = essay.time ? `${essay.time} read` : '';
+      read.href = essay.path;
+      if (announce) status.textContent = `At the desk. ${headline}`;
+    }
+
+    function updateResume() {
+      const { history } = readLibrary();
+      const last = Object.values(history)
+        .filter(({ postId, progress, completed }) => essays.has(postId) && progress > 4 && progress < 100 && !completed)
+        .sort((first, second) => second.updatedAt - first.updatedAt)[0];
+      const essay = last && essays.get(last.postId);
+      resume.hidden = !essay;
+      if (!essay) return;
+      resume.href = `${essay.path}?resume=1`;
+      resume.setAttribute('aria-label', `Continue reading ${essay.title}`);
+    }
+
+    if (essays.size) {
+      if (options.length < 4) {
+        const shown = new Set(options.map(({ dataset }) => dataset.deskOption));
+        const otherEssays = [...essays].filter(([id]) => !shown.has(id)).slice(0, 4 - options.length);
+        for (const [id, essay] of otherEssays) {
+          const item = document.createElement('li');
+          const option = document.createElement('button');
+          option.type = 'button';
+          option.dataset.deskOption = id;
+          option.setAttribute('aria-controls', paper.id);
+          option.textContent = essay.title;
+          item.append(option);
+          list.append(item);
+          options.push(option);
+        }
+      }
+      const initial = options[0]?.dataset.deskOption ?? essays.keys().next().value;
+      if (initial) choose(initial);
+      desk.hidden = false;
+      for (const link of list.querySelectorAll<HTMLElement>('[data-desk-fallback]')) link.hidden = true;
+      for (const option of options) {
+        option.hidden = false;
+        option.addEventListener('click', () => choose(option.dataset.deskOption!, true));
+      }
+      draw.hidden = essays.size < 2;
+      draw.addEventListener('click', () => {
+        const { history } = readLibrary();
+        const alternatives = [...essays.keys()].filter((id) => id !== active);
+        const unread = alternatives.filter((id) => !history[id]);
+        const pool = unread.length ? unread : alternatives;
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        if (pick) choose(pick, true);
+      });
+      updateResume();
+      window.addEventListener('pageshow', updateResume);
+      window.addEventListener(libraryChangeEvent, updateResume);
+      window.addEventListener('storage', (event) => {
+        if (!event.key || event.key === libraryKey) updateResume();
+      });
+    }
+  }
+</script>
+
+<style>
+  .question-desk {
+    display: grid;
+    gap: .85rem;
+    padding: clamp(.9rem, 2.7vw, 2rem);
+    margin-block-end: clamp(2.5rem, 6vw, 4.5rem);
+    border-block: 1px solid var(--ink);
+    background: color-mix(in srgb, var(--wash), var(--paper) 52%);
+  }
+  .question-desk__index { min-inline-size: 0; }
+  .question-desk h2, .author-archive h2 { font-size: clamp(2.25rem, 4vw, 3.3rem); letter-spacing: -.025em; }
+  .question-desk__list { list-style: none; padding: 0; margin: 1rem 0 .4rem; }
+  .question-desk__list li { margin-block-end: .25rem; }
+  .question-desk__list :is(a, button) {
+    display: block;
+    inline-size: 100%;
+    min-block-size: 2.75rem;
+    padding: .55rem .7rem .55rem .85rem;
+    border: 0;
+    border-inline-start: 2px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    text-align: start;
+    overflow-wrap: anywhere;
+    font-weight: 550;
+    transition: background var(--ease), border-color var(--ease), color var(--ease);
+  }
+  .question-desk__list :is(a, button):hover { background: var(--paper); color: var(--blue); }
+  .question-desk__list [aria-pressed='true'] {
+    border-inline-start: 4px solid var(--red);
+    padding-inline-start: calc(.85rem - 2px);
+    background: var(--paper);
+    color: var(--blue);
+    font-weight: 650;
+  }
+  .question-desk__actions { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .9rem; }
+  .desk-draw {
+    min-height: 2.75rem;
+    padding: .35rem 0;
+    border: 0;
+    color: var(--blue);
+    background: transparent;
+    font-weight: 650;
+    text-decoration: underline;
+    text-underline-offset: .18em;
+  }
+  .desk-draw:hover { text-decoration-thickness: 2px; }
+  .desk-sheet {
+    min-inline-size: 0;
+    border: 1px solid var(--line);
+    border-block-start: 3px solid var(--blue);
+    background: var(--paper);
+    padding: clamp(1.15rem, 3.8vw, 2.55rem);
+    box-shadow: .28rem .35rem 0 color-mix(in srgb, var(--ink) 10%, transparent);
+  }
+  .desk-sheet__time { color: var(--muted); font-size: .875rem; }
+  .desk-sheet h3 {
+    font-size: clamp(2.05rem, 4.55vw, 3.75rem);
+    line-height: 1.01;
+    letter-spacing: -.015em;
+    margin-block: .4rem .8rem;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+  }
+  .desk-sheet__description {
+    max-inline-size: 61ch;
+    margin-block-end: 1.2rem;
+    color: var(--muted);
+    font: 400 clamp(1rem, 1.85vw, 1.15rem)/1.5 var(--font-body);
+    overflow-wrap: anywhere;
+  }
+  .author-archive { max-inline-size: 60rem; }
+  .author-archive h2 { margin-block-end: .8rem; }
+  .author-archive :global(.essay-row__title) { overflow-wrap: anywhere; }
+  @media (min-width: 49rem) {
+    .question-desk { grid-template-columns: minmax(0, .86fr) minmax(0, 1.54fr); gap: clamp(1.25rem, 4.5vw, 3.5rem); }
+    .question-desk__index { padding: .45rem 0 .15rem; }
+    .desk-sheet { min-block-size: 16.5rem; }
+  }
+</style>

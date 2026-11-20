@@ -6,6 +6,7 @@ import { site } from '../lib/site';
 import TimeAwareTheme from '../components/TimeAwareTheme.astro';
 import SiteAnalytics from '../components/SiteAnalytics.astro';
 import { draftsEnabled } from '../lib/content';
+import { journalAuthorPath } from '../lib/journal-author.mjs';
 
 interface Props {
   title?: string;
@@ -30,6 +31,7 @@ const nav = [
   { href: '/questions/', label: 'Questions' },
   { href: '/loose-threads/', label: 'Loose Threads' },
   { href: '/editions/', label: 'Editions' },
+  { href: journalAuthorPath, label: 'About me' },
   preview ? { href: '/drafts/', label: 'Drafts' } : { href: '/saved/', label: 'Saved' },
 ];
 ---

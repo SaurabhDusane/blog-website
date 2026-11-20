@@ -10,7 +10,7 @@ const author = await getJournalAuthor();
 ---
 
 <Base title="DESK-TITLE" description="DESK-DESCRIPTION" type="article" wide>
-  <div class="reader desk-essay" data-desk-essay>
+  <div class="reader desk-essay" data-desk-essay="DESK-SLUG">
     <div class="reader-progress" role="progressbar" aria-label="Reading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
       <div class="reader-progress__fill"></div>
     </div>
@@ -34,20 +34,50 @@ const author = await getJournalAuthor();
 </Base>
 
 <script>
-  const progress = document.querySelector<HTMLElement>('[data-desk-essay] .reader-progress');
+  import { readLibrary, recordReading } from '../lib/reader-state';
+
+  const essay = document.querySelector<HTMLElement>('[data-desk-essay]');
+  const postId = essay?.dataset.deskEssay;
+  const progress = essay?.querySelector<HTMLElement>('.reader-progress');
   const fill = progress?.querySelector<HTMLElement>('.reader-progress__fill');
-  const prose = document.querySelector<HTMLElement>('[data-desk-prose]');
-  if (progress && fill && prose) {
+  const prose = essay?.querySelector<HTMLElement>('[data-desk-prose]');
+  if (postId && progress && fill && prose) {
+    const prior = readLibrary().history[postId];
+    let lastSaved = prior?.progress ?? 0;
+    let pending = lastSaved;
+    let timer = 0;
+
     const measure = () => {
       const { top, height } = prose.getBoundingClientRect();
-      const percent = Math.round(Math.min(1, Math.max(0, (.67 * window.innerHeight - top) / Math.max(1, height))) * 100);
+      const end = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
+      const fraction = end && top + height <= window.innerHeight ? 1 : (.67 * window.innerHeight - top) / Math.max(1, height);
+      const percent = Math.round(Math.min(1, Math.max(0, fraction)) * 100);
       progress.setAttribute('aria-valuenow', String(percent));
       fill.style.transform = `scaleX(${percent / 100})`;
+      return percent;
     };
-    window.addEventListener('scroll', measure, { passive: true });
+    const save = () => {
+      window.clearTimeout(timer);
+      if (!pending || pending === lastSaved) return;
+      recordReading(postId, pending);
+      lastSaved = pending;
+    };
+    window.addEventListener('scroll', () => {
+      pending = measure();
+      window.clearTimeout(timer);
+      timer = window.setTimeout(save, 600);
+    }, { passive: true });
+    window.addEventListener('pagehide', save);
     new ResizeObserver(measure).observe(prose);
     progress.hidden = false;
     measure();
+
+    if (new URLSearchParams(location.search).get('resume') === '1' && prior && prior.progress > 0 && prior.progress < 100 && !prior.completed) {
+      window.requestAnimationFrame(() => {
+        const { top, height } = prose.getBoundingClientRect();
+        window.scrollTo({ top: window.scrollY + top + height * prior.progress / 100 - window.innerHeight * .67 });
+      });
+    }
   }
 </script>
 

@@ -1,6 +1,7 @@
 ---
 import type { InferGetStaticPropsType } from 'astro';
-import CollectionIndex from '../../components/CollectionIndex.astro';
+import AuthorDesk from '../../components/AuthorDesk.astro';
+import Base from '../../layouts/Base.astro';
 import { getJournalAuthor, getPosts } from '../../lib/content';
 import { journalAuthorPath, legacyAuthorId } from '../../lib/journal-author.mjs';
 
@@ -15,4 +16,43 @@ export async function getStaticPaths() {
 const { author, posts, redirect } = Astro.props as InferGetStaticPropsType<typeof getStaticPaths>;
 if (redirect) return Astro.redirect(journalAuthorPath, 301);
 ---
-<CollectionIndex label={author.data.role} title={author.data.name} description={author.data.bio} posts={posts} backHref="/explore/" backLabel="Explore essays" deskEssays />
+<Base title={author.data.name} description={author.data.bio}>
+  <div class="wrap author-page">
+    <header class="author-intro">
+      <div>
+        <p class="eyebrow">About me</p>
+        <h1>{author.data.name}</h1>
+      </div>
+      <div class="author-intro__note">
+        <p>{author.data.bio}</p>
+        <a class="text-link" href="/about/">Why I write here</a>
+      </div>
+    </header>
+    <AuthorDesk posts={posts} questions={author.data.deskQuestions} />
+  </div>
+</Base>
+
+<style>
+  .author-page { max-width: 74rem; padding-block-start: clamp(2rem, 5.4vw, 4.6rem); }
+  .author-intro {
+    display: grid;
+    gap: clamp(.85rem, 3vw, 2rem) clamp(1.75rem, 5vw, 4rem);
+    padding-block-end: clamp(1.6rem, 4.5vw, 3rem);
+  }
+  .author-intro .eyebrow { margin-block-end: .55rem; font-size: .875rem; }
+  .author-intro h1 {
+    font-size: clamp(3.35rem, 8.3vw, 7.45rem);
+    letter-spacing: -.045em;
+    text-wrap: balance;
+  }
+  .author-intro__note p {
+    margin-block: 0 .35rem;
+    color: var(--muted);
+    font: 400 clamp(1.1rem, 2.15vw, 1.35rem)/1.54 var(--font-body);
+    max-inline-size: 32ch;
+  }
+  .author-intro__note .text-link { min-height: 2.75rem; }
+  @media (min-width: 53rem) {
+    .author-intro { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); align-items: end; }
+  }
+</style>

@@ -96,6 +96,11 @@ const authors = defineCollection({
     role: z.string(),
     bio: z.string(),
     email: z.string().email().optional(),
+    deskQuestions: z.array(z.object({
+      post: simpleId,
+      label: z.string().trim().min(1).max(55),
+      question: z.string().trim().min(1).max(120),
+    })).max(4).default([]),
   }),
 });
 
