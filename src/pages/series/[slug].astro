@@ -1,0 +1,19 @@
+---
+import type { InferGetStaticPropsType } from 'astro';
+import CollectionIndex from '../../components/CollectionIndex.astro';
+import ReadingPathProgress from '../../components/ReadingPathProgress.astro';
+import { getPosts, getSeries, readingPathPosts } from '../../lib/content';
+
+export async function getStaticPaths() {
+  const [series, posts] = await Promise.all([getSeries(), getPosts()]);
+  return series.map((path) => ({
+    params: { slug: path.id },
+    props: { path, posts: readingPathPosts(path, posts) },
+  }));
+}
+
+const { path, posts } = Astro.props as InferGetStaticPropsType<typeof getStaticPaths>;
+---
+<CollectionIndex label="Reading path" title={path.data.title} description={path.data.description} posts={posts} backHref="/start/" backLabel="Reading paths" ordered>
+  <ReadingPathProgress posts={posts} />
+</CollectionIndex>

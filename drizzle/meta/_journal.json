@@ -1,0 +1,69 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1794898800000,
+      "tag": "0000_newsletter",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794898801000,
+      "tag": "0001_author_replies",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794985200000,
+      "tag": "0002_reader_feedback",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1794985201000,
+      "tag": "0003_reader_stances",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794985202000,
+      "tag": "0004_reader_note_features",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794985203000,
+      "tag": "0005_reader_reconsiderations",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794985204000,
+      "tag": "0006_reader_field_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1794985205000,
+      "tag": "0007_publishing_desk",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1794985206000,
+      "tag": "0008_essay_classification",
+      "breakpoints": true
+    }
+  ]
+}

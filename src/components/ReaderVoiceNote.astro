@@ -1,0 +1,48 @@
+---
+interface Props { postId: string }
+const { postId } = Astro.props;
+---
+
+<details class="voice-note" data-voice-post={postId} hidden>
+  <summary>A voice note from the author</summary>
+  <div class="voice-note__body">
+    <audio controls preload="none" aria-label="Author’s voice note"></audio>
+    <details class="voice-note__transcript">
+      <summary>Read the transcript</summary>
+      <p data-voice-transcript></p>
+    </details>
+  </div>
+</details>
+
+<script>
+  for (const section of document.querySelectorAll<HTMLElement>('[data-voice-post]')) {
+    const post = section.dataset.voicePost;
+    const player = section.querySelector<HTMLAudioElement>('audio');
+    const transcript = section.querySelector<HTMLElement>('[data-voice-transcript]');
+    if (!post || !player || !transcript) continue;
+    void fetch(`/api/voice-note/?post=${encodeURIComponent(post)}`)
+      .then((response) => response.ok && response.json())
+      .then((data) => {
+        if (!data?.note?.transcript || !data.note.src.startsWith('/api/voice-note/?')) return;
+        transcript.textContent = data.note.transcript;
+        player.src = data.note.src;
+        section.hidden = false;
+      }).catch(() => {});
+  }
+</script>
+
+<style>
+  .voice-note { max-inline-size: 35rem; }
+  .voice-note summary {
+    color: var(--blue);
+    cursor: pointer;
+    font-size: .95rem;
+    font-weight: 600;
+    min-block-size: 2.75rem;
+    align-content: center;
+    width: fit-content;
+  }
+  .voice-note__body { border-inline-start: 1px solid var(--line); padding-inline-start: .85rem; }
+  .voice-note audio { display: block; width: min(100%, 21rem); }
+  .voice-note__transcript p { font: 1rem/1.6 var(--font-body); margin: 0 .2rem .75rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>

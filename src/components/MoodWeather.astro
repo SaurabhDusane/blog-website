@@ -1,0 +1,108 @@
+---
+import { feelings } from '../lib/feelings';
+
+interface Props {
+  postTitles: Record<string, string>;
+}
+const { postTitles } = Astro.props;
+---
+
+<div class="desk-weather" data-desk-weather data-post-titles={JSON.stringify(postTitles)}>
+  <section aria-labelledby="desk-weather-title">
+    <h2 id="desk-weather-title">Mood weather</h2>
+    <p data-weather-status>A quiet patch at the desk.</p>
+    <dl data-weather-map hidden>
+      {feelings.map(({id, label}) => <div data-weather-row={id} hidden>
+        <dt>{label}</dt>
+        <dd><progress max="1" value="0" aria-hidden="true"></progress> <span data-weather-count></span></dd>
+      </div>)}
+    </dl>
+  </section>
+  <section aria-labelledby="desk-featured-note" data-monthly-note hidden>
+    <h2 id="desk-featured-note">Reader’s note of the month</h2>
+    <figure>
+      <blockquote data-note-excerpt></blockquote>
+      <figcaption><span data-note-attribution></span> <span aria-hidden="true">·</span> <a data-note-post></a></figcaption>
+    </figure>
+  </section>
+</div>
+
+<script>
+  import { feelings, feelingCount } from '../lib/feelings';
+  import { readMoodWeather } from '../lib/mood-weather';
+
+  const weather = document.querySelector<HTMLElement>('[data-desk-weather]');
+  if (weather) {
+    const loadWeather = async () => {
+      const status = weather.querySelector<HTMLElement>('[data-weather-status]');
+      const map = weather.querySelector<HTMLElement>('[data-weather-map]');
+      if (!status || !map) return;
+
+      try {
+        const { totals, featuredNote } = await readMoodWeather();
+        const rows = feelings.map(({ id }) => ({ id, count: feelingCount(totals, id) }));
+        const total = rows.reduce((sum, row) => sum + row.count, 0);
+        if (total) {
+          status.textContent = `How ${total} reader responses have landed.`;
+          for (const { id, count } of rows) {
+            const row = map.querySelector<HTMLElement>(`[data-weather-row="${id}"]`);
+            const progress = row?.querySelector('progress');
+            const countLabel = row?.querySelector('[data-weather-count]');
+            if (!row || !progress || !countLabel || !count) continue;
+            row.hidden = false;
+            progress.max = total;
+            progress.value = count;
+            countLabel.textContent = String(count);
+          }
+          map.hidden = false;
+        }
+
+        if (!featuredNote || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(featuredNote.postId)) return;
+        const titles: Record<string, string> = JSON.parse(weather.dataset.postTitles ?? '{}');
+        const title = Object.hasOwn(titles, featuredNote.postId) ? titles[featuredNote.postId] : undefined;
+        if (!title) return;
+        const note = weather.querySelector<HTMLElement>('[data-monthly-note]');
+        const excerpt = note?.querySelector('[data-note-excerpt]');
+        const attribution = note?.querySelector('[data-note-attribution]');
+        const link = note?.querySelector<HTMLAnchorElement>('[data-note-post]');
+        if (!note || !excerpt || !attribution || !link) return;
+        excerpt.textContent = featuredNote.excerpt;
+        attribution.textContent = featuredNote.attribution;
+        link.href = `/posts/${featuredNote.postId}/`;
+        link.textContent = title;
+        note.hidden = false;
+      } catch {
+        status.textContent = 'I couldn’t see the latest reader responses.';
+      }
+    };
+
+    if ('IntersectionObserver' in window) {
+      const watch = new IntersectionObserver(([entry]) => {
+        if (!entry?.isIntersecting) return;
+        watch.disconnect();
+        void loadWeather();
+      }, { rootMargin: '260px' });
+      watch.observe(weather);
+    } else {
+      void loadWeather();
+    }
+  }
+</script>
+
+<style>
+  .desk-weather { display: grid; gap: 1.35rem 2.5rem; border-block-start: 1px solid var(--ink); padding-block: 1.5rem; }
+  .desk-weather h2 { font-size: clamp(2.1rem, 4.3vw, 3.15rem); }
+  .desk-weather p { margin: .5rem 0 0; color: var(--muted); font-size: 1rem; }
+  .desk-weather dl { display: grid; gap: .36rem; max-inline-size: 23rem; margin-block: .8rem 0; }
+  .desk-weather dl div { display: grid; grid-template-columns: minmax(7rem, 1fr) 1fr; gap: .4rem; align-items: center; font-size: .89rem; }
+  .desk-weather dd { display: flex; align-items: center; gap: .65rem; margin: 0; }
+  .desk-weather progress { appearance: none; color: var(--blue); background: var(--wash); border: 0; min-inline-size: 0; inline-size: 100%; block-size: .25rem; }
+  .desk-weather progress::-webkit-progress-bar { background: var(--wash); }
+  .desk-weather progress::-webkit-progress-value { background: var(--blue); }
+  .desk-weather progress::-moz-progress-bar { background: var(--blue); }
+  .desk-weather figure { margin: .75rem 0 0; border-inline-start: 2px solid var(--blue); padding-inline-start: .85rem; }
+  .desk-weather blockquote { margin: 0; max-width: 42ch; overflow-wrap: anywhere; font: 400 1.07rem/1.5 var(--font-body); }
+  .desk-weather figcaption { margin-block-start: .5rem; color: var(--muted); font-size: .85rem; }
+  .desk-weather figcaption a { display: inline-block; min-block-size: 1.55rem; }
+  @media (min-width: 53rem) { .desk-weather { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+</style>

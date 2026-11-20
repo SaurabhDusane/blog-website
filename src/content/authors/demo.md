@@ -1,3 +1,0 @@
----
-name: Publishing Test
----

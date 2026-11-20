@@ -1,0 +1,42 @@
+<script is:inline>
+(() => {
+  const clock = new Date();
+  let isNight = clock.getHours() < 6 || clock.getHours() >= 19;
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Phoenix', year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: 'numeric', minute: 'numeric', hourCycle: 'h23',
+    }).formatToParts(clock);
+    const local = Object.fromEntries(parts.map(({ type, value }) => [type, Number(value)]));
+    const day = (Date.UTC(local.year, local.month - 1, local.day) - Date.UTC(local.year, 0, 1)) / 86400000;
+
+    // NOAA's seasonal sunrise and sunset approximation for the desk's Phoenix clock.
+    const radians = Math.PI / 180;
+    const yearAngle = 2 * Math.PI * day / 365.2422;
+    const cosine = Math.cos(yearAngle);
+    const sine = Math.sin(yearAngle);
+    const doubleCosine = Math.cos(2 * yearAngle);
+    const doubleSine = Math.sin(2 * yearAngle);
+    const equation = 229.18 * (.000075 + .001868 * cosine - .032077 * sine - .014615 * doubleCosine - .040849 * doubleSine);
+    const declination = .006918 - .399912 * cosine + .070257 * sine - .006758 * doubleCosine
+      + .000907 * doubleSine - .002697 * Math.cos(3 * yearAngle) + .00148 * Math.sin(3 * yearAngle);
+    const latitude = 33.45 * radians;
+    const horizon = Math.cos(90.833 * radians) / (Math.cos(latitude) * Math.cos(declination))
+      - Math.tan(latitude) * Math.tan(declination);
+    const daylightHalf = 4 * Math.acos(horizon) / radians;
+    const solarNoon = 720 + 4 * 112.07 - 7 * 60 - equation;
+    const minutes = 60 * local.hour + local.minute;
+    isNight = minutes < solarNoon - daylightHalf || minutes >= solarNoon + daylightHalf;
+  } catch {}
+
+  const appearance = document.documentElement;
+  appearance.dataset.clock = isNight ? 'night' : 'day';
+  appearance.dataset.defaultTheme = isNight ? 'dark' : 'light';
+  let savedTheme;
+  try { savedTheme = localStorage.getItem('second-ink:theme'); } catch {}
+  appearance.dataset.theme = ['light', 'sepia', 'dark'].includes(savedTheme)
+    ? savedTheme
+    : appearance.dataset.defaultTheme;
+})();
+</script>

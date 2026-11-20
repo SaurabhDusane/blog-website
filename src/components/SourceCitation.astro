@@ -1,0 +1,19 @@
+---
+import { sourceAnchor } from '../lib/annotated-sources';
+
+interface Props {
+  source: string;
+  label: string;
+}
+
+const { source, label } = Astro.props;
+---
+
+<a class="source-citation" href={`#${sourceAnchor(source)}`}>{label}</a>
+
+<style>
+  .source-citation {
+    text-decoration-style: dotted;
+    text-underline-offset: .15em;
+  }
+</style>

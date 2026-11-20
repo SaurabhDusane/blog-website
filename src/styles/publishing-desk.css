@@ -1,0 +1,47 @@
+.publishing-desk { padding-block: clamp(1.7rem, 6vw, 4.5rem); }
+.publishing-desk [hidden] { display: none !important; }
+.publishing-desk h1 { font-size: clamp(3rem, 8vw, 6rem); line-height: .95; }
+.publishing-desk h2 { font-size: clamp(2.25rem, 5vw, 3.3rem); }
+.publishing-desk h3 { font-size: 1.65rem; }
+.publishing-desk :is(h2, h3, h4) { margin: 0; }
+.publishing-desk__heading, .publishing-desk__preview-heading, .publishing-desk__shelf,
+.publishing-desk__actions, .publishing-desk__bar { display: flex; align-items: center; flex-wrap: wrap; gap: .7rem 1.15rem; }
+.publishing-desk__heading, .publishing-desk__preview-heading { justify-content: space-between; }
+.publishing-desk__heading .eyebrow { margin: 0 0 .4rem; }
+.publishing-desk__bar { border-block: 1px solid var(--line); margin-block: 1rem 2rem; padding: .2rem 0; }
+.publishing-desk__bar button { margin-inline-start: auto; }
+.publishing-desk__section + .publishing-desk__section { border-block-start: 1px solid var(--line); margin-block-start: 2.5rem; padding-block-start: 1.5rem; }
+.publishing-desk__shelf { margin-block: .7rem 1.4rem; }
+.publishing-desk__shelf > div { display: grid; gap: .25rem; width: min(100%, 25rem); }
+.publishing-desk__grid { display: grid; gap: 1.6rem; }
+.publishing-desk__grid > * { min-inline-size: 0; }
+.publishing-desk form { display: grid; gap: .45rem; align-content: start; }
+.publishing-desk form .publishing-desk__actions { margin-block-start: .45rem; }
+.publishing-desk [data-desk-login] { max-inline-size: 24rem; }
+.publishing-desk__voice { max-inline-size: 39rem; }
+.publishing-desk :is(input, textarea, select) { background: var(--paper); color: var(--ink); border: 1px solid var(--muted); font: inherit; min-block-size: 2.75rem; min-inline-size: 0; max-inline-size: 100%; padding: .5rem .6rem; }
+.publishing-desk textarea { resize: vertical; }
+.publishing-desk textarea[name='body'] { font: 400 1.05rem/1.5 var(--font-body); }
+.publishing-desk label { font-weight: 600; }
+.publishing-desk__hint, .publishing-desk__status { color: var(--muted); font-size: .9rem; line-height: 1.45; margin: .3rem 0 .5rem; overflow-wrap: anywhere; }
+.publishing-desk__status[data-error] { color: var(--red); }
+.publishing-desk :is(button.text-link, a.text-link) { min-block-size: 2.75rem; display: inline-flex; align-items: center; }
+.publishing-desk button.text-link { border: 0; background: none; padding: 0; cursor: pointer; }
+.publishing-desk button:disabled { opacity: .58; cursor: default; }
+.publishing-desk audio { max-inline-size: 100%; }
+.publishing-desk__import, .publishing-desk__supplement { border-block-start: 1px solid var(--line); padding-block: .1rem .55rem; }
+.publishing-desk__import { border-block-end: 1px solid var(--line); margin-block-end: .3rem; }
+.publishing-desk summary { color: var(--blue); cursor: pointer; font-weight: 600; min-block-size: 2.75rem; align-content: center; }
+.publishing-desk__preview { border: 1px solid var(--line); background: var(--paper); min-block-size: 12rem; padding: clamp(1rem, 3vw, 1.5rem); margin: .4rem auto 1rem; overflow-wrap: anywhere; }
+.publishing-desk__preview[data-phone] { max-inline-size: 390px; }
+.publishing-desk__preview h4 { font-size: clamp(2.15rem, 4vw, 3.25rem); line-height: 1.02; }
+.publishing-desk__preview p[data-desk-preview-description] { color: var(--muted); font: 1.05rem/1.5 var(--font-body); }
+.publishing-desk__preview .reader-prose { width: auto; margin: 1rem 0 0; font-size: 1rem; }
+.publishing-desk__preview .reader-prose :is(h2,h3) { font-size: 1.6rem; }
+.publishing-desk__diff { white-space: pre-wrap; overflow-wrap: anywhere; font: 1rem/1.5 var(--font-body); }
+.publishing-desk__diff :is(ins,del) { background: var(--wash); }
+.publishing-desk__diff ins { text-decoration: underline; color: var(--blue); }
+.publishing-desk__diff del { color: var(--red); }
+.publishing-desk__supplement ul { padding-inline-start: 1.25rem; overflow-wrap: anywhere; }
+.publishing-desk__supplement li + li { margin-block-start: .4rem; }
+@media (min-width: 58rem) { .publishing-desk__grid { grid-template-columns: 1fr 1fr; gap: 2.5rem; } }

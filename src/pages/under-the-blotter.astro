@@ -1,0 +1,17 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Under the blotter" description="A small note tucked under the desk blotter." noindex>
+  <section class="wrap interior overlooked-note">
+    <h1>Under the blotter</h1>
+    <p class="lead">Here’s a question I keep beside the keyboard. What would you have noticed if you’d arrived five minutes earlier?</p>
+    <p>I never have a good answer on the spot. It’s still worth carrying around for a day.</p>
+    <a class="text-link" href="/">Back to the desk</a>
+  </section>
+</Base>
+
+<style>
+  .overlooked-note { max-inline-size: 46rem; }
+  .overlooked-note > p:not(.lead) { max-inline-size: 40ch; font: 400 1.08rem/1.55 var(--font-body); }
+</style>

@@ -1,0 +1,65 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { annotatedSources, sourceAnchor, sourceIndex } from '../lib/annotated-sources';
+import { readSourceLinkStatus } from '../../scripts/source-link-status.mjs';
+
+interface Props {
+  post: CollectionEntry<'posts'>;
+}
+
+const { post } = Astro.props;
+const sources = post.data.sources?.length ? annotatedSources(post, await sourceIndex()) : [];
+const roles = {
+  supports: 'Supports the point',
+  complicates: 'Complicates the point',
+  background: 'Background',
+};
+---
+
+{sources.length > 0 && (
+  <section class="annotated-sources" aria-labelledby="annotated-sources-title">
+    <h2 id="annotated-sources-title">Sources and notes</h2>
+    <ul class="annotated-sources__list">
+      {sources.map((source) => {
+        const unavailable = readSourceLinkStatus(source.url);
+        const archive = source.archiveUrl ?? unavailable?.archiveUrl;
+        const credits = [source.author, source.publication, source.year].filter(Boolean).join(' · ');
+        return (
+          <li id={sourceAnchor(source.id)} tabindex="-1" data-annotated-source>
+            <p class="annotated-sources__role">{roles[source.role]}</p>
+            <h3><a href={source.url}>{source.title}</a></h3>
+            {credits && <p class="annotated-sources__credits">{credits}</p>}
+            <p class="annotated-sources__note">{source.note}</p>
+            {unavailable && <p class="annotated-sources__credits">I couldn’t reach the original link.</p>}
+            {archive && <p class="annotated-sources__credits"><a href={archive} aria-label={`Read the archived copy of ${source.title}`}>Read the archived copy</a></p>}
+          </li>
+        );
+      })}
+    </ul>
+  </section>
+)}
+
+<style>
+  .annotated-sources {
+    margin-block: clamp(2.8rem, 8vw, 5rem) 1rem;
+    max-inline-size: var(--reader-measure);
+    margin-inline: auto;
+  }
+  .annotated-sources h2 {
+    margin-block-end: .85rem;
+    font: 400 clamp(1.95rem, 5vw, 2.8rem)/1.05 var(--font-display);
+  }
+  .annotated-sources__list { margin: 0; padding: 0; list-style: none; }
+  .annotated-sources__list li {
+    padding: 1rem clamp(.7rem, 3vw, 1rem);
+    border-block-start: 1px solid var(--line);
+    scroll-margin-block-start: calc(var(--reader-sticky-top) + 6.5rem);
+    overflow-wrap: anywhere;
+  }
+  .annotated-sources__list li:target, .annotated-sources__list li:focus { background: var(--wash); }
+  .annotated-sources h3 { margin-block: .28rem; font: 400 clamp(1.3rem, 3vw, 1.6rem)/1.2 var(--font-display); }
+  .annotated-sources a { text-decoration-thickness: 1px; text-underline-offset: .13em; }
+  .annotated-sources__role { margin: 0; color: var(--blue); font: 600 .875rem/1.4 var(--font-ui); }
+  .annotated-sources__credits { margin: .3rem 0 0; color: var(--muted); font: 400 .875rem/1.45 var(--font-ui); }
+  .annotated-sources__note { margin: .45rem 0 0; font: var(--reader-type)/1.55 var(--font-body); }
+</style>

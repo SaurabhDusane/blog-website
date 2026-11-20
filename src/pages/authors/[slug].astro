@@ -1,0 +1,16 @@
+---
+import type { InferGetStaticPropsType } from 'astro';
+import CollectionIndex from '../../components/CollectionIndex.astro';
+import { getAuthors, getPosts } from '../../lib/content';
+
+export async function getStaticPaths() {
+  const [authors, posts] = await Promise.all([getAuthors(), getPosts()]);
+  return authors.map((author) => ({
+    params: { slug: author.id },
+    props: { author, posts: posts.filter(({ data }) => data.author.id === author.id) },
+  }));
+}
+
+const { author, posts } = Astro.props as InferGetStaticPropsType<typeof getStaticPaths>;
+---
+<CollectionIndex label={author.data.role} title={author.data.name} description={author.data.bio} posts={posts} backHref="/explore/" backLabel="Explore essays" />

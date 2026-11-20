@@ -1,0 +1,108 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { postPath } from '../lib/content';
+
+interface Props {
+  posts: CollectionEntry<'posts'>[];
+}
+
+const { posts } = Astro.props;
+const stops = posts.map((post) => ({ id: post.id, title: post.data.title, href: postPath(post) }));
+const first = stops[0];
+const noun = stops.length === 1 ? 'essay' : 'essays';
+---
+
+{first && <div class="path-progress" data-reading-path={JSON.stringify(stops)}>
+  <div class="path-progress__meter">
+    <span data-path-count>{stops.length} {noun} in this path</span>
+    <progress data-path-finished value="0" max={stops.length} aria-hidden="true"></progress>
+  </div>
+  <a class="text-link path-progress__next" href={first.href} data-path-next>
+    <span data-path-next-label>Start with {first.title}</span>
+    <span aria-hidden="true">→</span>
+  </a>
+</div>}
+
+<script>
+  import { libraryChangeEvent, libraryKey, readLibrary } from '../lib/reader-state';
+
+  interface PathStop {
+    id: string;
+    title: string;
+    href: string;
+  }
+
+  function initPathProgress() {
+    const panels = [...document.querySelectorAll<HTMLElement>('[data-reading-path]')].flatMap((panel) => {
+      const count = panel.querySelector<HTMLElement>('[data-path-count]');
+      const progress = panel.querySelector<HTMLProgressElement>('[data-path-finished]');
+      const next = panel.querySelector<HTMLAnchorElement>('[data-path-next]');
+      const label = next?.querySelector<HTMLElement>('[data-path-next-label]');
+      if (!count || !progress || !next || !label || !panel.dataset.readingPath) return [];
+      const stops: PathStop[] = JSON.parse(panel.dataset.readingPath);
+      return stops.length ? [{ count, progress, next, label, stops }] : [];
+    });
+    if (!panels.length) return;
+
+    const render = () => {
+      const { history } = readLibrary();
+      for (const { count, progress, next, label, stops } of panels) {
+        const unfinished = stops.filter(({ id }) => {
+          const entry = history[id];
+          return entry?.completed !== true && entry?.progress !== 100;
+        });
+        const completed = stops.length - unfinished.length;
+        const stop = unfinished[0] ?? stops[0];
+        const position = history[stop.id]?.progress ?? 0;
+        const resume = position > 0 && position < 100;
+        const noun = stops.length === 1 ? 'essay' : 'essays';
+        let action = completed ? 'Continue with' : 'Start with';
+        if (!unfinished.length) action = 'Revisit';
+        else if (resume) action = 'Resume';
+
+        count.textContent = `${completed} of ${stops.length} ${noun} finished`;
+        progress.value = completed;
+        progress.dataset.ready = '';
+        next.href = resume ? `${stop.href}?resume=1` : stop.href;
+        label.textContent = `${action} ${stop.title}`;
+      }
+    };
+
+    render();
+    window.addEventListener(libraryChangeEvent, render);
+    window.addEventListener('storage', (event) => {
+      if (event.key === libraryKey || event.key === null) render();
+    });
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) render();
+    });
+  }
+
+  initPathProgress();
+</script>
+
+<style>
+  .path-progress {
+    margin-block: 0.6rem 1.25rem;
+  }
+  .path-progress__meter {
+    display: grid;
+    gap: 0.4rem;
+    inline-size: min(100%, 14rem);
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+  .path-progress__meter progress {
+    appearance: none;
+    background: var(--wash);
+    border: 0;
+    color: var(--blue);
+    block-size: 0.28rem;
+    inline-size: 100%;
+  }
+  .path-progress__meter progress:not([data-ready]) { visibility: hidden; }
+  .path-progress__meter progress::-webkit-progress-bar { background: var(--wash); }
+  .path-progress__meter progress::-webkit-progress-value { background: var(--blue); }
+  .path-progress__meter progress::-moz-progress-bar { background: var(--blue); }
+  .path-progress__next { max-inline-size: 100%; }
+</style>

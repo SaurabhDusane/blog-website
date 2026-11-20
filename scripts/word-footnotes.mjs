@@ -1,6 +1,11 @@
 import { parseFragment } from 'parse5';
 
 const footnoteId = /^word-footnote-\d+$/;
+const noteKinds = {
+  'what i saw': ['observation', 'What I saw'],
+  "what i'm guessing": ['hunch', 'What I’m guessing'],
+  'the strongest objection': ['objection', 'The strongest objection'],
+};
 
 function attribute(node, name) {
   return node.attrs?.find((item) => item.name === name)?.value;
@@ -34,6 +39,26 @@ function removeMammothBacklink(node, referenceId) {
   replaceChildren(node, children);
 }
 
+function takeKind(note) {
+  const paragraph = note.childNodes.find(({ tagName }) => tagName === 'p');
+  if (!paragraph) return;
+  const text = [];
+  walk(paragraph, (node) => {
+    if (node.nodeName === '#text') text.push(node);
+  });
+  const prefix = text.map(({ value }) => value).join('')
+    .match(/^\s*(what i saw|what i['’]m guessing|the strongest objection)\s*:\s*/i);
+  if (!prefix) return;
+  let remaining = prefix[0].length;
+  for (const node of text) {
+    if (remaining === 0) break;
+    const used = Math.min(remaining, node.value.length);
+    node.value = node.value.slice(used);
+    remaining -= used;
+  }
+  return noteKinds[prefix[1].toLowerCase().replace('’', "'")];
+}
+
 function makeAside(note, id, referenceId, number) {
   const [aside] = parseFragment(
     '<aside class="margin-note" data-margin-note data-word-footnote>' +
@@ -42,7 +67,7 @@ function makeAside(note, id, referenceId, number) {
     '<div class="margin-note__body"></div>' +
     '<a class="margin-note__link">Back to the text</a></aside>',
   ).childNodes;
-  const [, title, body, back] = aside.childNodes;
+  const [kicker, title, body, back] = aside.childNodes;
   const label = id + '-label';
   setAttribute(aside, 'id', id);
   setAttribute(aside, 'aria-labelledby', label);
@@ -50,6 +75,12 @@ function makeAside(note, id, referenceId, number) {
   title.childNodes[0].value = 'Footnote ' + number;
   setAttribute(back, 'href', '#' + referenceId);
   removeMammothBacklink(note, referenceId);
+  const kind = takeKind(note);
+  if (kind) {
+    setAttribute(aside, 'data-margin-note-kind', kind[0]);
+    kicker.childNodes[0].value = 'Footnote ' + number;
+    title.childNodes[0].value = kind[1];
+  }
   const contents = note.childNodes.filter((node) => (
     node.tagName !== 'p'
     || node.childNodes.some((child) => child.nodeName !== '#text' || child.value.trim())

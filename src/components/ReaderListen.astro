@@ -1,0 +1,64 @@
+<details class="reader-listen" data-reader-listen hidden>
+  <summary>Listen to this essay</summary>
+  <div class="reader-listen__controls">
+    <button class="button" type="button" data-listen-play>Play</button>
+    <button class="reader-listen__stop" type="button" data-listen-stop disabled>Stop</button>
+    <label class="reader-listen__rate">
+      <span>Speed</span>
+      <select data-listen-rate aria-label="Reading speed">
+        <option value="0.75">0.75×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.25">1.25×</option>
+        <option value="1.5">1.5×</option>
+        <option value="2">2×</option>
+      </select>
+    </label>
+  </div>
+  <p class="reader-listen__status" data-listen-status role="status" aria-atomic="true"></p>
+</details>
+
+<style>
+  .reader-listen { max-inline-size: 100%; padding: .1rem 0; }
+  .reader-listen summary {
+    display: list-item;
+    min-block-size: 2.75rem;
+    align-content: center;
+    width: fit-content;
+    cursor: pointer;
+    color: var(--blue);
+    font-weight: 600;
+    font-size: .9rem;
+  }
+  .reader-listen__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .6rem;
+    padding-block: .25rem .45rem;
+  }
+  .reader-listen__stop,
+  .reader-listen__rate select {
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: .3rem .6rem;
+    min-block-size: 2.75rem;
+    font-size: .9rem;
+  }
+  .reader-listen__stop:disabled { cursor: default; color: var(--muted); }
+  .reader-listen__rate { position: relative; display: inline-flex; align-items: center; gap: .35rem; color: var(--muted); font-size: .875rem; }
+  .reader-listen__rate select { appearance: none; padding-inline-end: 1.6rem; }
+  .reader-listen__rate::after {
+    position: absolute;
+    inset-inline-end: .62rem;
+    width: .42rem;
+    height: .42rem;
+    border-inline-end: 1px solid currentColor;
+    border-block-end: 1px solid currentColor;
+    transform: translateY(-.11rem) rotate(45deg);
+    pointer-events: none;
+    content: "";
+  }
+  .reader-listen__status { color: var(--muted); margin: .15rem 0 .45rem; font-size: .875rem; }
+  .reader-listen__status:empty { margin: 0; }
+</style>

@@ -1,0 +1,206 @@
+name: Publish Second Ink
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  schedule:
+    - cron: '17 * * * *'
+    - cron: '43 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: second-ink-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ASTRO_TELEMETRY_DISABLED: '1'
+      SITE_URL: ${{ vars.SITE_URL }}
+      PUBLIC_PLAUSIBLE_DOMAIN: ${{ vars.PUBLIC_PLAUSIBLE_DOMAIN }}
+      NETLIFY_CLI_VERSION: '27.20.0'
+      SECOND_INK_STATE_MANAGED: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Select the deployment context
+        id: target
+        if: >
+          github.event.repository.private && vars.NETLIFY_PRIVATE_PROJECT == 'true' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          PRODUCTION: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+          REVIEW: ${{ (github.event_name == 'push' && github.ref != 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
+        run: |
+          if [ -z "$NETLIFY_AUTH_TOKEN" ] || [ -z "$NETLIFY_SITE_ID" ]; then
+            if [ "$PRODUCTION" = 'true' ]; then
+              echo "::error::Set the Netlify deployment secrets for the private project."
+              exit 1
+            fi
+            echo "This review run can build without deployment credentials."
+            exit 0
+          fi
+          if [ -z "$SITE_URL" ]; then
+            echo "::error::Set SITE_URL to the private Netlify project's HTTPS origin."
+            exit 1
+          fi
+          if [ "$PRODUCTION" = 'true' ]; then
+            echo "production=true" >> "$GITHUB_OUTPUT"
+          elif [ "$REVIEW" = 'true' ]; then
+            echo "preview=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Restore published conversions
+        id: word-cache
+        if: steps.target.outputs.production == 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: .data/word-import-cache
+          key: second-ink-word-v2-${{ runner.os }}-${{ hashFiles('package-lock.json', 'scripts/import-*.mjs', 'scripts/convert-*.mjs', 'scripts/word-*.mjs', 'scripts/document-*.mjs', 'scripts/pdf-*.mjs', 'scripts/essay-*.mjs') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: second-ink-word-v2-${{ runner.os }}-${{ hashFiles('package-lock.json', 'scripts/import-*.mjs', 'scripts/convert-*.mjs', 'scripts/word-*.mjs', 'scripts/document-*.mjs', 'scripts/pdf-*.mjs', 'scripts/essay-*.mjs') }}-
+      - name: Restore source link status
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        id: source-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .data/source-link-status.json
+          key: second-ink-sources-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: second-ink-sources-v1-${{ runner.os }}-
+      - run: npm ci
+      - name: Load previous successful publication
+        id: baseline
+        if: steps.target.outputs.production == 'true' || steps.target.outputs.preview == 'true'
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: node scripts/publish-state-netlify.mjs restore
+      - name: Check and build
+        env:
+          SECOND_INK_INCLUDE_DRAFTS: ${{ steps.target.outputs.preview == 'true' && '1' || '0' }}
+        run: |
+          if [ "$SECOND_INK_INCLUDE_DRAFTS" = '1' ]; then
+            export PUBLIC_PLAUSIBLE_DOMAIN=''
+          fi
+          npm run check
+          npm run build:netlify
+      - name: Check published source links
+        if: github.ref == 'refs/heads/main' && github.event_name == 'schedule' && github.event.schedule == '43 8 * * 1'
+        id: source-check
+        run: node scripts/check-source-links.mjs
+      - name: Keep the source-link report
+        if: steps.source-check.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: source-link-report
+          path: .data/source-link-report.txt
+          include-hidden-files: true
+          retention-days: 14
+      - name: Rebuild changed source cards
+        if: steps.source-check.outputs.source_links_changed == 'true'
+        run: npm run build:netlify
+      - name: Prepare a production release
+        if: steps.target.outputs.production == 'true'
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          PREVIOUS_DEPLOY_ID: ${{ steps.baseline.outputs.published_id }}
+          FIRST_DEPLOY_ID: ${{ steps.baseline.outputs.first_deploy_id }}
+        run: |
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" != "$GITHUB_SHA" ]; then
+            echo "A newer version of main will handle publishing."
+            exit 0
+          fi
+          node scripts/publish-state-netlify.mjs stage "$PREVIOUS_DEPLOY_ID" "$FIRST_DEPLOY_ID"
+      - name: Publish to the private Netlify project
+        if: steps.release.outputs.title != ''
+        id: production
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          RELEASE_TITLE: ${{ steps.release.outputs.title }}
+          PUBLISHED_DIGEST: ${{ steps.baseline.outputs.public_digest }}
+          RELEASE_DIGEST: ${{ steps.release.outputs.public_digest }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$PUBLISHED_DIGEST" = "$RELEASE_DIGEST" ]; then
+            echo "The published site is current."
+            echo "snapshot_current=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          npx --yes "netlify-cli@$NETLIFY_CLI_VERSION" deploy --prod --context production --no-build --dir=.netlify-output --functions=netlify/functions --message "$RELEASE_TITLE" --json > "$RUNNER_TEMP/second-ink-production.json"
+          node scripts/publish-state-netlify.mjs verify "$RELEASE_TITLE"
+          echo "published=true" >> "$GITHUB_OUTPUT"
+          echo "snapshot_current=true" >> "$GITHUB_OUTPUT"
+      - name: Save published conversion cache
+        if: steps.production.outputs.snapshot_current == 'true' && hashFiles('.data/word-import-cache/*.json') != ''
+        uses: actions/cache/save@v6
+        with:
+          path: .data/word-import-cache
+          key: ${{ steps.word-cache.outputs.cache-primary-key }}
+      - name: Save source link status
+        if: steps.source-check.outcome == 'success' && steps.production.outputs.snapshot_current == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: .data/source-link-status.json
+          key: ${{ steps.source-cache.outputs.cache-primary-key }}
+      - name: Publish and verify the private draft preview
+        if: steps.target.outputs.preview == 'true'
+        id: preview
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          node scripts/publish-state-netlify.mjs verify-project
+          if [ -n "$PR_NUMBER" ]; then
+            alias="second-ink-pr-$PR_NUMBER"
+          else
+            alias="second-ink-$(printf '%s' "$GITHUB_REF" | sha256sum | cut -c1-16)"
+          fi
+          mkdir -p "$RUNNER_TEMP/second-ink-no-functions"
+          deploy_json="$RUNNER_TEMP/second-ink-preview.json"
+          npx --yes "netlify-cli@$NETLIFY_CLI_VERSION" deploy --context deploy-preview --alias "$alias" --no-build --dir=.netlify-output --functions="$RUNNER_TEMP/second-ink-no-functions" --json > "$deploy_json"
+          site_name="$(jq -er '.site_name | strings | select(test("^[a-z0-9][a-z0-9-]*$"))' "$deploy_json")"
+          checks=()
+          if [ -d .netlify-output/posts ]; then
+            post="$(find .netlify-output/posts -mindepth 2 -name index.html -print -quit)"
+            if [ -n "$post" ]; then checks+=("/${post#.netlify-output/}"); fi
+          fi
+          pdf="$(find .netlify-output -name '*.pdf' -print -quit)"
+          if [ -n "$pdf" ]; then checks+=("/${pdf#.netlify-output/}"); fi
+          image="$(find .netlify-output -name '*.webp' -print -quit)"
+          if [ -n "$image" ]; then checks+=("/${image#.netlify-output/}"); fi
+          node scripts/publish-state-netlify.mjs verify-preview "https://$alias--$site_name.netlify.app" "${checks[@]}"
+      - name: Write the Actions summary
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.event_name == 'push' && github.event.repository.private && github.token || '' }}
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          PUBLISHED: ${{ steps.production.outputs.published }}
+          PRIVATE_PROJECT: ${{ vars.NETLIFY_PRIVATE_PROJECT }}
+        run: |
+          node scripts/publish-state-netlify.mjs report
+          if [ -n "$PREVIEW_URL" ]; then
+            printf '### Private preview\n\n[Open the preview](%s) and sign in to Netlify.\n' "$PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$PUBLISHED" = 'true' ]; then
+            printf '### Published\n\n[Open Second Ink](%s)\n' "$SITE_URL" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$PRIVATE_PROJECT" != 'true' ]; then
+            printf '### Build only\n\nConnect a private Netlify project to enable publishing and previews.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi

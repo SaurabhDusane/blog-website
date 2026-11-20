@@ -1,0 +1,73 @@
+---
+interface Props {
+  url: string;
+  filename: string;
+  complex?: boolean;
+}
+
+const { url, filename, complex } = Astro.props;
+---
+
+<section class="document-original" aria-label="Original PDF">
+  <a class="text-link" href={url} download={filename}>Read the original PDF</a>
+  {complex && (
+    <details data-pdf-viewer={url}>
+      <summary>View the original layout</summary>
+      <p data-pdf-status role="status" aria-atomic="true"></p>
+      <div class="document-original__pages" data-pdf-controls hidden>
+        <button class="text-link" type="button" data-pdf-back>Previous page</button>
+        <button class="text-link" type="button" data-pdf-next>Next page</button>
+      </div>
+      <canvas data-pdf-page role="img" aria-label="Page from the original PDF" hidden></canvas>
+    </details>
+  )}
+</section>
+
+<style>
+  .document-original {
+    max-inline-size: var(--reader-measure);
+    margin: 0 auto 1.4rem;
+    padding: .85rem 1rem;
+    border-inline-start: 2px solid var(--blue);
+    background: var(--wash);
+    font: 400 .9rem/1.55 var(--font-ui);
+  }
+  .document-original summary { cursor: pointer; padding-block: .4rem; }
+  .document-original [data-pdf-status]:empty { display: none; }
+  .document-original__pages:not([hidden]) { display: flex; flex-wrap: wrap; gap: .3rem 1rem; }
+  .document-original__pages button {
+    border: 0;
+    background: transparent;
+    min-block-size: 2.75rem;
+    padding-inline: .25rem;
+    font: inherit;
+  }
+  .document-original__pages button:disabled { opacity: .75; cursor: default; }
+  .document-original canvas:not([hidden]) {
+    display: block;
+    inline-size: min(100%, var(--pdf-width, 100%));
+    height: auto;
+    margin-block-start: .5rem;
+    border: 1px solid var(--line);
+  }
+</style>
+
+<script>
+  for (const viewer of document.querySelectorAll<HTMLDetailsElement>('[data-pdf-viewer]')) {
+    async function openPdf() {
+      if (!viewer.open) return;
+      viewer.removeEventListener('toggle', openPdf);
+      const status = viewer.querySelector<HTMLElement>('[data-pdf-status]');
+      if (status) status.textContent = 'Opening the original PDF…';
+      try {
+        const { displayPdf } = await import('../lib/pdf-preview');
+        await displayPdf(viewer);
+      } catch {
+        if (status) status.textContent = 'The viewer couldn’t open this file here. Use the download link to read it.';
+        viewer.addEventListener('toggle', openPdf);
+      }
+    }
+    viewer.addEventListener('toggle', openPdf);
+    if (viewer.open) void openPdf();
+  }
+</script>

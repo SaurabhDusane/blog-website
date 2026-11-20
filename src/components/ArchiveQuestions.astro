@@ -1,0 +1,93 @@
+<details class="archive-questions" data-archive-questions>
+  <summary>Ask the archive</summary>
+  <p>Look for an answer in the passages you can read for yourself.</p>
+  <form role="search" aria-label="Ask the archive" hidden>
+    <div class="archive-questions__input">
+      <label for="archive-question">Your question</label>
+      <input id="archive-question" type="search" name="question" maxlength="180" required
+        autocomplete="off" placeholder="How do I get started when I feel stuck?" />
+    </div>
+    <button class="button" type="submit">Find passages</button>
+  </form>
+  <p class="archive-questions__status" role="status" data-question-status></p>
+  <ol class="archive-questions__results" role="list" data-question-results hidden></ol>
+  <noscript><p>Enable JavaScript to ask a question, or browse the essays below.</p></noscript>
+</details>
+
+<style>
+  .archive-questions {
+    border-block-end: 1px solid var(--line);
+    padding-block: 1rem;
+  }
+
+  summary {
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: clamp(1.45rem, 2.6vw, 2rem);
+    inline-size: fit-content;
+  }
+
+  p {
+    color: var(--muted);
+    margin-block: .45rem .75rem;
+  }
+
+  form:not([hidden]) {
+    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem;
+    max-inline-size: 43rem;
+  }
+
+  .archive-questions__input {
+    display: grid;
+    flex: 1 1 20rem;
+    gap: .25rem;
+    min-inline-size: 0;
+  }
+
+  label {
+    font-family: var(--font-ui);
+    font-size: .875rem;
+    font-weight: 600;
+  }
+
+  input {
+    background: var(--paper);
+    border: 1px solid var(--muted);
+    color: var(--ink);
+    font: 1rem var(--font-ui);
+    min-block-size: 2.75rem;
+    padding: .5rem .65rem;
+  }
+
+  input::placeholder { color: var(--muted); opacity: 1; }
+  button { min-block-size: 2.75rem; }
+  .archive-questions__status { font-family: var(--font-ui); font-size: .875rem; }
+  .archive-questions__status:empty { margin: 0; }
+
+  .archive-questions__results {
+    list-style: none;
+    margin: 1rem 0 0;
+    max-inline-size: 43rem;
+    padding: 0;
+  }
+
+  .archive-questions__results :global(li) {
+    border-inline-start: 2px solid var(--blue);
+    margin-block-end: 1rem;
+    padding-inline-start: .75rem;
+  }
+
+  .archive-questions__results :global(blockquote) {
+    color: var(--muted);
+    margin: .35rem 0 0;
+    overflow-wrap: anywhere;
+  }
+
+  .archive-questions__results :global(mark) {
+    background: var(--wash);
+    color: var(--ink);
+  }
+</style>

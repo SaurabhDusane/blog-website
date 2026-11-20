@@ -1,0 +1,29 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import EssayRow from '../../components/EssayRow.astro';
+import { draftsEnabled, getDraftPosts, postPath } from '../../lib/content';
+import '../../styles/discovery.css';
+
+interface Props { drafts: CollectionEntry<'posts'>[] }
+
+export async function getStaticPaths() {
+  if (!draftsEnabled()) return [];
+  return [{ params: { slug: undefined }, props: { drafts: await getDraftPosts() } }];
+}
+
+const { drafts } = Astro.props;
+---
+
+<Base title="Drafts" description="Private drafts for review." noindex>
+  <section class="wrap discovery" aria-labelledby="drafts-title">
+    <header class="discovery__header">
+      <h1 id="drafts-title">Drafts</h1>
+      <p>Notes that are still on the desk.</p>
+    </header>
+    {drafts.length ? <ul class="essay-index" role="list">
+      {drafts.map((post) => <EssayRow href={postPath(post)} title={post.data.title}
+        description={post.data.description} minutes={post.data.minutes} />)}
+    </ul> : <p>There are no drafts to review.</p>}
+  </section>
+</Base>

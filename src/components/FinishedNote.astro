@@ -1,0 +1,38 @@
+---
+interface Props {
+  postId: string;
+}
+
+const { postId } = Astro.props;
+---
+
+{postId === 'who-decides-what-comes-next' && <aside class="finished-note" data-finished-note={postId} aria-labelledby="finished-note-title" hidden>
+  <h2 id="finished-note-title">A note I tucked away</h2>
+  <p>Sometimes an old note starts a newer question. I like leaving a little room for that.</p>
+  <a class="text-link" href="/under-the-blotter/">Look under the page</a>
+</aside>}
+
+<script>
+  import { libraryChangeEvent, libraryKey, readLibrary } from '../lib/reader-state';
+
+  const note = document.querySelector<HTMLElement>('[data-finished-note]');
+  if (note?.dataset.finishedNote) {
+    const slug = note.dataset.finishedNote;
+    const update = () => {
+      const read = readLibrary().history[slug];
+      note.hidden = read?.completed !== true && read?.progress !== 100;
+    };
+    update();
+    window.addEventListener(libraryChangeEvent, update);
+    window.addEventListener('pageshow', update);
+    window.addEventListener('storage', (event) => {
+      if (event.key === libraryKey || event.key === null) update();
+    });
+  }
+</script>
+
+<style>
+  .finished-note { margin-block: 2rem; background: var(--wash); border-inline-start: 2px solid var(--blue); padding: 1rem 1.15rem; }
+  .finished-note h2 { font-size: 2.18rem; }
+  .finished-note p { max-inline-size: 43ch; margin: .5rem 0 0; }
+</style>

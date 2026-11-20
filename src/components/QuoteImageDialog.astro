@@ -1,0 +1,58 @@
+---
+interface Props { id: string }
+const { id } = Astro.props;
+---
+
+<dialog class="quote-image-dialog" aria-labelledby={`${id}-title`} data-quote-image-dialog>
+  <div class="quote-image-dialog__top">
+    <h2 id={`${id}-title`}>A quote to keep</h2>
+    <form method="dialog">
+      <button class="text-link" type="submit">Close</button>
+    </form>
+  </div>
+  <p class="quote-image-dialog__status" data-quote-image-status role="status" aria-atomic="true"></p>
+  <img class="quote-image-dialog__preview" data-quote-image-preview alt="" hidden />
+  <div class="quote-image-dialog__actions" data-quote-image-actions hidden>
+    <button class="button" type="button" data-quote-image-download>Download PNG</button>
+    <button class="text-link" type="button" data-quote-image-share hidden>Share image</button>
+  </div>
+</dialog>
+
+<style>
+  .quote-image-dialog {
+    width: min(34rem, calc(100% - 1.5rem));
+    max-height: calc(100dvh - 1.5rem);
+    padding: clamp(.8rem, 4vw, 1.5rem);
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .quote-image-dialog::backdrop { background: rgb(20 23 30 / .52); }
+  .quote-image-dialog__top,
+  .quote-image-dialog__actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .35rem .85rem;
+  }
+  .quote-image-dialog__top { justify-content: space-between; }
+  .quote-image-dialog h2 { font: 400 clamp(1.8rem, 6vw, 2.3rem)/1.05 var(--font-display); }
+  .quote-image-dialog__top form { margin: 0; }
+  .quote-image-dialog button.text-link {
+    border: none;
+    padding: 0;
+    background: transparent;
+    text-decoration: underline;
+    text-underline-offset: .18em;
+  }
+  .quote-image-dialog__status { margin: .5rem 0; color: var(--muted); font-size: .9rem; }
+  .quote-image-dialog__status:empty { margin: 0; }
+  .quote-image-dialog__preview {
+    width: 100%;
+    height: auto;
+    max-height: min(53dvh, 30rem);
+    object-fit: contain;
+    margin: .65rem auto;
+  }
+  .quote-image-dialog__actions { margin-top: .75rem; }
+</style>

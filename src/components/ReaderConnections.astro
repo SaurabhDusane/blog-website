@@ -1,0 +1,32 @@
+---
+interface Props {
+  items: Array<{ title: string; href: string; reason: string }>;
+}
+
+const { items } = Astro.props;
+---
+
+{items.length > 0 && (
+  <section class="reader-connections" aria-labelledby="reader-connections-title">
+    <h2 id="reader-connections-title">Across subjects</h2>
+    <ul role="list">
+      {items.map(({ title, href, reason }) => <li>
+        <h3><a href={href}>{title}</a></h3>
+        <p>{reason}</p>
+      </li>)}
+    </ul>
+  </section>
+)}
+
+<style>
+  .reader-connections {
+    max-inline-size: var(--reader-measure);
+    margin-inline: auto;
+    margin-block-end: clamp(3rem, 6vw, 5rem);
+  }
+  h2 { font-size: clamp(2rem, 4vw, 3rem); }
+  ul { display: grid; gap: 1rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+  li { border-inline-start: 2px solid var(--blue); padding-inline-start: 1.15rem; }
+  h3 { font-size: clamp(1.5rem, 3vw, 1.8rem); line-height: 1.1; overflow-wrap: anywhere; }
+  p { margin: .45rem 0 0; color: var(--muted); font: 400 1rem/1.5 var(--font-body); overflow-wrap: anywhere; }
+</style>

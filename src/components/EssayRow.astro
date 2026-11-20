@@ -1,0 +1,105 @@
+---
+interface Props {
+  href: string;
+  title: string;
+  description?: string;
+  minutes: number;
+  mood?: string;
+  topic?: string;
+  id?: string;
+  compact?: boolean;
+  filter?: { text: string; topics: string };
+}
+
+const { href, title, description, minutes, mood, topic, id, compact, filter } = Astro.props;
+---
+
+<li
+  class:list={['essay-row', { 'essay-row--compact': compact }]}
+  id={id}
+  data-result={filter ? 'true' : undefined}
+  data-search={filter?.text}
+  data-topics={filter?.topics}
+  data-minutes={filter ? minutes : undefined}
+  data-mood={filter ? mood : undefined}
+>
+  <div class="essay-row__body">
+    <a class="essay-row__title" href={href}>{title}</a>
+    {description && !compact && <p class="essay-row__description">{description}</p>}
+    {(topic || mood) && !compact && (
+      <p class="essay-row__tags">
+        {topic && <span>{topic}</span>}
+        {mood && <span>{mood}</span>}
+      </p>
+    )}
+  </div>
+  <div class="essay-row__meta">
+    <span class="essay-row__time">{minutes} min</span>
+    <slot />
+  </div>
+</li>
+
+<style>
+  .essay-row {
+    align-items: start;
+    border-block-end: 1px solid var(--line);
+    display: grid;
+    gap: clamp(.75rem, 3vw, 1.75rem);
+    grid-template-columns: 1fr auto;
+    list-style: none;
+    padding-block: clamp(1rem, 2.4vw, 1.6rem);
+  }
+
+  .essay-row--compact { padding-block: .8rem; }
+  .essay-row[hidden] { display: none; }
+
+  .essay-row__title {
+    color: var(--ink);
+    display: inline-block;
+    font-family: var(--font-display);
+    font-size: clamp(1.65rem, 4vw, 2.45rem);
+    font-weight: 400;
+    line-height: 1.05;
+    text-decoration: none;
+    text-wrap: balance;
+  }
+
+  .essay-row--compact .essay-row__title { font-size: clamp(1.45rem, 3.1vw, 2rem); }
+
+  .essay-row__title:hover, .essay-row__title:focus-visible {
+    color: var(--blue);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: .15em;
+  }
+
+  .essay-row__description {
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1.55;
+    margin: .35rem 0 0;
+    max-inline-size: 52ch;
+  }
+
+  .essay-row__tags, .essay-row__meta {
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: .8125rem;
+    line-height: 1.5;
+  }
+
+  .essay-row__tags { display: flex; gap: .65rem; flex-wrap: wrap; margin: .6rem 0 0; }
+  .essay-row__tags span { text-transform: capitalize; }
+  .essay-row__tags span + span::before { content: '·'; margin-inline-end: .65rem; }
+
+  .essay-row__meta {
+    align-items: end;
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+    padding-block-start: .2rem;
+    text-align: end;
+  }
+
+  .essay-row__time { font-variant-numeric: tabular-nums; white-space: nowrap; }
+</style>

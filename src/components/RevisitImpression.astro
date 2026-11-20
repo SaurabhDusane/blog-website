@@ -1,0 +1,80 @@
+---
+import { reconsiderationChoices, reconsiderationMovements } from '../lib/reconsiderations';
+
+interface Props {
+  postId: string;
+}
+
+const { postId } = Astro.props;
+---
+
+<section class="revisit-impression" data-revisit-post={postId} aria-labelledby="revisit-heading" hidden>
+  <p class="eyebrow">After reading</p>
+  <h2 id="revisit-heading" tabindex="-1">Where do you land now?</h2>
+  <dl class="revisit-impression__comparison" aria-label="Your answers">
+    <div><dt>Before</dt><dd data-revisit-before></dd></div>
+    <div data-revisit-after-wrap hidden><dt>Now</dt><dd data-revisit-after></dd></div>
+  </dl>
+  <form data-revisit-form>
+    <fieldset>
+      <legend class="sr-only">Choose your answer after reading</legend>
+      <div class="revisit-impression__choices">
+        {reconsiderationChoices.map(({ id, label }) => (
+          <button type="submit" name="stance" value={id}>{label}</button>
+        ))}
+      </div>
+    </fieldset>
+    <input type="text" name="website" autocomplete="off" tabindex="-1" aria-hidden="true" hidden />
+    <div data-revisit-check></div>
+  </form>
+  <section data-revisit-movement aria-labelledby="revisit-movement-heading" hidden>
+    <h3 id="revisit-movement-heading">How other readers moved</h3>
+    <dl class="revisit-impression__movement">
+      {reconsiderationMovements.map(({ id, label }) => (
+        <div><dt>{label}</dt><dd data-revisit-count={id}>0</dd></div>
+      ))}
+    </dl>
+  </section>
+  <p class="revisit-impression__note" data-revisit-waiting hidden>Group results appear once five other readers answer both questions.</p>
+  <p class="revisit-impression__status" role="status" aria-atomic="true" data-revisit-status></p>
+</section>
+
+<style>
+  .revisit-impression {
+    border-block-start: 1px solid var(--line);
+    padding-block-start: clamp(1rem, 3vw, 1.5rem);
+  }
+
+  h2, h3 { margin: 0 0 .65rem; }
+
+  .revisit-impression__comparison,
+  .revisit-impression__movement {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem 1.4rem;
+    margin: 0 0 .9rem;
+  }
+
+  dt { color: var(--muted); font: 600 .875rem var(--font-ui); }
+  dd { margin: .15rem 0 0; }
+  fieldset { border: 0; margin: 0; min-inline-size: 0; padding: 0; }
+  .revisit-impression__choices { display: flex; flex-wrap: wrap; gap: .45rem; }
+  button {
+    min-block-size: 2.75rem;
+    padding: .45rem .65rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    font: 600 .875rem var(--font-ui);
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--blue); color: var(--blue); }
+  button:disabled { cursor: wait; opacity: .7; }
+  .revisit-impression__note, .revisit-impression__status { color: var(--muted); font-size: .925rem; margin: .65rem 0 0; }
+  .revisit-impression__status:empty { margin: 0; }
+  .revisit-impression__status[data-error] { color: var(--red); }
+</style>
+
+<script>
+  import '../scripts/revisit-impression';
+</script>

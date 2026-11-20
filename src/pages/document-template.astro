@@ -1,0 +1,49 @@
+---
+import Base from '../layouts/Base.astro';
+import ReaderVoiceNote from '../components/ReaderVoiceNote.astro';
+import '../styles/reader.css';
+---
+
+<Base title="DESK-TITLE" description="DESK-DESCRIPTION" type="article" wide>
+  <div class="reader desk-essay" data-desk-essay>
+    <div class="reader-progress" role="progressbar" aria-label="Reading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
+      <div class="reader-progress__fill"></div>
+    </div>
+    <header class="reader-header wrap">
+      <a class="reader-back" href="/explore/">All essays</a>
+      <Fragment set:html={'DESK-TOPICS'} />
+      <h1 id="reader-title">DESK-TITLE</h1>
+      <p class="reader-deck">DESK-DESCRIPTION</p>
+      <div class="reader-meta"><time datetime="DESK-PUBLISHED">DESK-DATE</time><span>DESK-MINUTES min read</span><span class="reader-mood">DESK-MOOD</span></div>
+      <ReaderVoiceNote postId="DESK-SLUG" />
+    </header>
+    <article class="reader-article wrap" aria-labelledby="reader-title">
+      <Fragment set:html={'DESK-DOCUMENT'} />
+      <div class="reader-prose" data-desk-prose><Fragment set:html={'DESK-PROSE'} /></div>
+    </article>
+  </div>
+</Base>
+
+<script>
+  const progress = document.querySelector<HTMLElement>('[data-desk-essay] .reader-progress');
+  const fill = progress?.querySelector<HTMLElement>('.reader-progress__fill');
+  const prose = document.querySelector<HTMLElement>('[data-desk-prose]');
+  if (progress && fill && prose) {
+    const measure = () => {
+      const { top, height } = prose.getBoundingClientRect();
+      const percent = Math.round(Math.min(1, Math.max(0, (.67 * window.innerHeight - top) / Math.max(1, height))) * 100);
+      progress.setAttribute('aria-valuenow', String(percent));
+      fill.style.transform = `scaleX(${percent / 100})`;
+    };
+    window.addEventListener('scroll', measure, { passive: true });
+    new ResizeObserver(measure).observe(prose);
+    progress.hidden = false;
+    measure();
+  }
+</script>
+
+<style>
+  .desk-essay { padding-block-end: clamp(3rem, 8vw, 6rem); }
+  .desk-essay .reader-header { margin-block-end: clamp(1rem, 4vw, 2.5rem); }
+  .desk-essay :global(.desk-essay__original) { margin: 0 auto 1.5rem; max-inline-size: 68ch; }
+</style>

@@ -1,0 +1,75 @@
+---
+interface Props {
+  postId: string;
+  title: string;
+}
+
+const { postId, title } = Astro.props;
+---
+
+<div class="offline-essay wrap" data-offline-essay data-offline-id={postId} data-offline-title={title} hidden>
+  <button class="offline-essay__action" type="button" data-offline-action>Keep offline</button>
+  <span class="offline-essay__status" data-offline-status role="status" aria-atomic="true"></span>
+</div>
+
+<script>
+  import { askOfflineShelf, getOfflineWorker, onOfflineChange } from '../lib/offline-client';
+
+  async function setup() {
+    const control = document.querySelector<HTMLElement>('[data-offline-essay]');
+    const button = control?.querySelector<HTMLButtonElement>('[data-offline-action]');
+    const status = control?.querySelector<HTMLElement>('[data-offline-status]');
+    const id = control?.dataset.offlineId;
+    const title = control?.dataset.offlineTitle;
+    if (!control || !button || !status || !id || !title || !await getOfflineWorker()) return;
+
+    let kept = false;
+    let busy = false;
+    function render(entries: { id: string }[]) {
+      kept = entries.some((entry) => entry.id === id);
+      button!.textContent = kept ? 'Remove offline copy' : 'Keep offline';
+      control!.hidden = false;
+    }
+
+    async function refresh() {
+      if (busy) return;
+      const result = await askOfflineShelf({ type: 'offline:list' });
+      if (!busy && result.ok) render(result.entries);
+    }
+
+    button.addEventListener('click', async () => {
+      if (busy) return;
+      const remove = kept;
+      busy = true;
+      button.disabled = true;
+      status.textContent = remove ? 'Taking it off the shelf…' : 'Folding a copy for later…';
+      const result = await askOfflineShelf(remove
+        ? { type: 'offline:remove', id }
+        : { type: 'offline:keep', id, title });
+      busy = false;
+      button.disabled = false;
+      if (result.ok) {
+        render(result.entries);
+        status.textContent = remove ? 'Offline copy removed.' : 'Ready to read offline.';
+      } else {
+        status.textContent = result.message;
+      }
+    });
+    onOfflineChange(() => void refresh());
+    window.addEventListener('pageshow', (event) => { if (event.persisted) void refresh(); });
+    await refresh();
+  }
+
+  void setup();
+</script>
+
+<style>
+  .offline-essay { display: flex; flex-wrap: wrap; column-gap: .9rem; align-items: center; margin-block: 0 1rem; }
+  .offline-essay__action {
+    background: none; border: 0; color: var(--blue); cursor: pointer;
+    padding: .35rem 0; min-block-size: 2.75rem; text-align: left;
+    font: 600 .88rem/1.4 var(--font-ui); text-decoration: underline; text-underline-offset: .18em;
+  }
+  .offline-essay__action:disabled { opacity: .75; }
+  .offline-essay__status { color: var(--muted); font-size: .88rem; }
+</style>

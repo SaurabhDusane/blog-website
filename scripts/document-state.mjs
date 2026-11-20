@@ -7,7 +7,7 @@ const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const digestPattern = /^[a-f0-9]{64}$/;
 const snapshotName = /^[a-f0-9]{64}\.json$/;
 const assetName = /^(?:[a-f0-9]{24}\.webp|[a-f0-9]{64}\.pdf)$/;
-const sourcePath = /^posts\/(?:drafts\/)?[^/\\\0]+\.(?:docx|pdf)$/i;
+const sourcePath = /^posts\/(?:(?:drafts|essays|threads)\/)?[^/\\\0]+\.(?:docx|pdf)$/i;
 
 export function digest(bytes) {
   return createHash('sha256').update(bytes).digest('hex');

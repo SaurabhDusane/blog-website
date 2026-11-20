@@ -1,0 +1,49 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getPosts } from '../../lib/content';
+import { editionDate, editionEssays, editionPath, getEditions } from '../../lib/editions';
+
+const [editions, posts] = await Promise.all([getEditions(), getPosts()]);
+const entries = editions.map((edition) => ({ edition, essays: editionEssays(edition, posts) }));
+---
+
+<Base title="Reading editions" description="A few Second Ink essays chosen to read in order.">
+  <section class="wrap interior editions-index">
+    <h1>Reading editions</h1>
+    <p class="lead">Each edition gathers a few essays around a single question and gives you an order to read them in.</p>
+    {entries.length ? <ul class="editorial-list" role="list">
+      {entries.map(({ edition, essays }) => (
+        <li class="edition-entry">
+          <div class="edition-entry__date">
+            <time datetime={edition.data.publishedAt.toISOString()}>{editionDate.format(edition.data.publishedAt)}</time>
+            {essays.length > 0 && <p>{essays.length} {essays.length === 1 ? 'essay' : 'essays'} · {essays.reduce((sum, { entry }) => sum + entry.data.minutes, 0)} min</p>}
+          </div>
+          <div>
+            <h2><a href={editionPath(edition)}>{edition.data.title}</a></h2>
+            <p class="edition-entry__description">{edition.data.description}</p>
+          </div>
+        </li>
+      ))}
+    </ul> : <p>The first edition is still on the desk.</p>}
+  </section>
+</Base>
+
+<style>
+  .editions-index { max-inline-size: 58rem; }
+  .edition-entry {
+    display: grid;
+    gap: .55rem 1.8rem;
+    padding-block: clamp(1.15rem, 3vw, 1.8rem);
+    border-block-end: 1px solid var(--line);
+  }
+  .edition-entry__date { color: var(--muted); font-size: .88rem; }
+  .edition-entry__date p { margin: .25rem 0 0; }
+  .edition-entry h2 { font-size: clamp(2rem, 4.6vw, 3rem); text-wrap: balance; overflow-wrap: anywhere; }
+  .edition-entry h2 a { color: var(--ink); text-decoration-thickness: 1px; }
+  .edition-entry h2 a:hover, .edition-entry h2 a:focus-visible { color: var(--blue); }
+  .edition-entry__description { max-inline-size: 54ch; margin: .6rem 0 0; font: 400 1.06rem/1.5 var(--font-body); }
+  @media (min-width: 42rem) {
+    .edition-entry { grid-template-columns: minmax(8.5rem, 1fr) minmax(0, 3fr); }
+    .edition-entry__date { padding-block-start: .2rem; }
+  }
+</style>

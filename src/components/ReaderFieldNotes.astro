@@ -1,0 +1,75 @@
+---
+interface Props {
+  postId: string;
+  prompt: string;
+}
+
+const { postId, prompt } = Astro.props;
+---
+
+<details class="reader-field-note" data-field-note={postId} data-field-note-prompt={prompt}>
+  <summary>Leave a field note</summary>
+  <form action="/api/field-notes/" method="post" data-field-note-form hidden>
+    <label for="reader-field-note-text">{prompt}</label>
+    <p id="reader-field-note-help">This goes straight to the author’s private inbox. Up to 2,000 characters.</p>
+    <textarea id="reader-field-note-text" name="note" rows="5" maxlength="2000" aria-describedby="reader-field-note-help" required></textarea>
+    <label class="reader-field-note__consent">
+      <input type="checkbox" name="quoteConsent" />
+      <span>You can quote part of my note anonymously.</span>
+    </label>
+    <input type="text" name="website" autocomplete="off" tabindex="-1" aria-hidden="true" hidden />
+    <div id="field-note-reader-check" data-field-note-check></div>
+    <button type="submit" class="button">Send my note</button>
+  </form>
+  <p class="reader-field-note__status" role="status" aria-atomic="true" data-field-note-status></p>
+  <noscript><p>Turn on JavaScript to send a field note.</p></noscript>
+</details>
+
+<style>
+  .reader-field-note {
+    border-block: 1px solid var(--line);
+    padding-block: .75rem;
+  }
+  summary {
+    cursor: pointer;
+    font: 600 1rem var(--font-ui);
+    min-block-size: 2.75rem;
+    padding-block: .55rem;
+  }
+  summary:hover { color: var(--blue); }
+  form:not([hidden]) {
+    display: grid;
+    align-items: start;
+    gap: .65rem;
+    padding-block-start: .35rem;
+  }
+  form > label:first-child { font-weight: 600; overflow-wrap: anywhere; }
+  #reader-field-note-help, .reader-field-note__status { color: var(--muted); font-size: .925rem; margin: 0; }
+  textarea {
+    inline-size: 100%;
+    min-inline-size: 0;
+    border: 1px solid var(--muted);
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    padding: .65rem;
+    resize: vertical;
+  }
+  .reader-field-note__consent {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    font: .925rem var(--font-ui);
+    min-block-size: 2.75rem;
+    cursor: pointer;
+  }
+  input[type='checkbox'] { accent-color: var(--blue); inline-size: 1rem; block-size: 1rem; flex-shrink: 0; }
+  button { justify-self: start; min-block-size: 2.75rem; }
+  button:disabled { cursor: wait; opacity: .7; }
+  .reader-field-note__status:not(:empty) { margin-block-start: .7rem; }
+  .reader-field-note__status[data-error] { color: var(--red); }
+</style>
+
+<script>
+  import '../scripts/reader-field-notes';
+</script>

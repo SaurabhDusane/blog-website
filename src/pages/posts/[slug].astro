@@ -1,14 +1,294 @@
 ---
-import { getCollection, render } from 'astro:content';
-import '../../styles.css';
-export async function getStaticPaths() { return (await getCollection('posts')).map((post) => ({ params: { slug: post.id }, props: { post } })); }
-const { post } = Astro.props;
-const { Content } = await render(post);
-const { title, minutes, publishedAt, updatedAt, documentSource } = post.data;
+import { Image } from "astro:assets";
+import { render, type CollectionEntry } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import AnnotatedSources from "../../components/AnnotatedSources.astro";
+import BeforeRead from "../../components/BeforeRead.astro";
+import CopyTextDialog from "../../components/CopyTextDialog.astro";
+import DocumentOriginal from "../../components/DocumentOriginal.astro";
+import FinishedNote from "../../components/FinishedNote.astro";
+import NewsletterForm from "../../components/NewsletterForm.astro";
+import OfflineEssay from "../../components/OfflineEssay.astro";
+import QuoteImageDialog from "../../components/QuoteImageDialog.astro";
+import ReaderConnections from "../../components/ReaderConnections.astro";
+import ReaderFeedback from "../../components/ReaderFeedback.astro";
+import ReaderFieldNotes from "../../components/ReaderFieldNotes.astro";
+import ReaderListen from "../../components/ReaderListen.astro";
+import ReaderRevisions from "../../components/ReaderRevisions.astro";
+import ReaderVoiceNote from "../../components/ReaderVoiceNote.astro";
+import RevisitImpression from "../../components/RevisitImpression.astro";
+import SourceCard from "../../components/SourceCard.astro";
+import { draftsEnabled, getAuthors, getDraftPosts, getPosts, getRelatedPosts, getTopics, postPath, postRedirects } from "../../lib/content";
+import { postSocialImageAlt, postSocialImageKey } from "../../lib/post-social-image";
+import { wordRevisionDates } from "../../lib/revision-history";
+import "../../styles/reader.css";
+
+interface Props {
+  post: CollectionEntry<"posts">;
+  redirect?: boolean;
+}
+
+export async function getStaticPaths() {
+  const [posts, drafts] = await Promise.all([getPosts(), getDraftPosts()]);
+  const draftIds = new Set(drafts.map(({ id }) => id));
+  return [
+    ...[...posts, ...drafts].map((post) => ({ params: { slug: post.id }, props: { post } })),
+    ...[...postRedirects(posts)].filter(([alias]) => !draftIds.has(alias))
+      .map(([slug, post]) => ({ params: { slug }, props: { post, redirect: true } })),
+  ];
+}
+
+const { post, redirect } = Astro.props;
+if (redirect) return Astro.redirect(postPath(post), 301);
+
+const { Content, headings } = await render(post);
+const { title, description, publishedAt, updatedAt, minutes, image, imageAlt, mood, reflectionQuestion, sourceTitle, sourceAuthor, sourceUrl, whyIPickedThis, archiveUrl, claim, claimQuestion, updates, thoughtsNow, wordSource, documentSource } = post.data;
+const isPreview = draftsEnabled();
+const isDraft = documentSource?.draft === true;
+const shareImage = isDraft ? undefined : `/og/posts/${encodeURIComponent(postSocialImageKey(post.id, title, mood))}.jpg`;
+const beforeQuestion = !isPreview && (claimQuestion || (claim ? "What’s your first instinct?" : undefined));
+const revisions = wordRevisionDates(wordSource?.filename, publishedAt);
+const imported = documentSource ?? wordSource;
+const outline = (imported?.headings ?? headings).filter(({ depth }) => depth >= 2);
+const hasOutline = outline.length >= (imported ? 3 : 1);
+const hasNotes = !imported || imported.hasNotes;
+const [authors, topics, related, publishedPosts] = await Promise.all([
+  getAuthors(),
+  getTopics(),
+  getRelatedPosts(post),
+  post.data.connections?.length ? getPosts() : [],
+]);
+const postsById = new Map(publishedPosts.map((entry) => [entry.id, entry]));
+const aliases = postRedirects(publishedPosts);
+const connectedIds = new Set([post.id]);
+const connections = (post.data.connections ?? []).flatMap(({ post: id, reason }) => {
+  const target = postsById.get(id) ?? aliases.get(id);
+  if (!target || target.data.locale !== post.data.locale || connectedIds.has(target.id)) return [];
+  connectedIds.add(target.id);
+  return [{ title: target.data.title, href: postPath(target), reason }];
+});
+const otherRelated = related.filter((entry) => !connectedIds.has(entry.id));
+const author = authors.find((entry) => entry.id === post.data.author.id);
+const articleTopics = post.data.topics.flatMap((reference) => {
+  const topic = topics.find((entry) => entry.id === reference.id);
+  return topic ? [topic] : [];
+});
+const dateDisplay = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const email = [import.meta.env.PUBLIC_AUTHOR_EMAIL, author?.data.email]
+  .map((address) => address?.trim())
+  .find((address) => address && /^[^\s@?&]+@[^\s@?&]+\.[^\s@?&]+$/.test(address));
 ---
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{title} · Second Ink publishing test</title></head>
-<body><main><a href="/">All sample notes</a><article><h1>{title}</h1>
-<p class="label"><time datetime={publishedAt.toISOString()}>{publishedAt.toISOString().slice(0, 10)}</time> · {minutes} min</p>
-{updatedAt && <p>Updated <time datetime={updatedAt.toISOString()}>{updatedAt.toISOString().slice(0, 10)}</time></p>}
-{documentSource.originalUrl && <p><a href={documentSource.originalUrl}>Read the original PDF</a></p>}
-<Content /></article></main></body></html>
+
+<Base title={title} description={description} image={shareImage} imageAlt={isDraft ? undefined : postSocialImageAlt(title, mood)} type="article" wide>
+  <div class="reader" data-reader data-post-id={post.id} data-post-title={title}>
+    <div class="reader-progress" role="progressbar" aria-label="Reading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-reader-progress hidden>
+      <div class="reader-progress__fill" data-reader-progress-fill></div>
+    </div>
+
+    <header class="reader-header wrap">
+      <a class="reader-back" href={isDraft ? "/drafts/" : "/explore/"}><span aria-hidden="true">←</span> {isDraft ? "Drafts" : "All essays"}</a>
+      <div class="reader-header__topics">
+        {isDraft && <span class="eyebrow">Draft preview</span>}
+        {articleTopics.map((topic) => (
+          <a class="eyebrow" href={`/topics/${topic.id}/`}>{topic.data.name}</a>
+        ))}
+      </div>
+      <h1 id="reader-title">{title}</h1>
+      {!beforeQuestion && <p class="reader-deck">{description}</p>}
+      <div class="reader-meta">
+        {author && <span>By <a href={`/authors/${author.id}/`}>{author.data.name}</a></span>}
+        <time datetime={publishedAt.toISOString()}>{dateDisplay.format(publishedAt)}</time>
+        {updatedAt && <span>Updated <time datetime={updatedAt.toISOString()}>{dateDisplay.format(updatedAt)}</time></span>}
+        <span>{minutes} min read</span>
+        <span class="reader-mood">{mood}</span>
+      </div>
+      <SourceCard title={sourceTitle} author={sourceAuthor} url={sourceUrl} why={whyIPickedThis} archiveUrl={archiveUrl} />
+      <div class="reader-resume" data-reader-resume hidden>
+        <a href="?resume=1" class="text-link" data-reader-resume-link><span data-reader-resume-label>Pick up where you left off</span> <span aria-hidden="true">↓</span></a>
+      </div>
+    </header>
+
+    {beforeQuestion && <BeforeRead postId={post.id} question={beforeQuestion} claim={claim} />}
+    <noscript><style is:inline>.reader-controls-outer, .reader-extras { display: none; } .reader-take[hidden] { display: block !important; }</style></noscript>
+    <div class="reader-take" id="reader-take" data-reader-take hidden={Boolean(beforeQuestion)} tabindex="-1">
+      {beforeQuestion && <div class="wrap reader-take__intro"><p class="reader-deck">{description}</p></div>}
+      <ReaderRevisions updates={updates} revisions={revisions} thoughtsNow={thoughtsNow} />
+      <div class="reader-sticky-scope">
+        <div class="reader-controls-outer" data-reader-controls inert>
+          <div class="reader-controls wrap">
+            <div class="reader-controls__access">
+              <details class="reader-settings" data-reader-settings>
+                <summary><span class="reader-settings__aa" aria-hidden="true">Aa</span> <span>Reading settings</span></summary>
+                <div class="reader-settings__panel">
+                  <div class="reader-settings__group" role="group" aria-label="Text size">
+                    <span class="reader-settings__label">Text size</span>
+                    <div class="reader-settings__options">
+                      <button type="button" data-reader-size="small" aria-pressed="false" aria-label="Small text">A</button>
+                      <button type="button" data-reader-size="regular" aria-pressed="true" aria-label="Regular text">A</button>
+                      <button type="button" data-reader-size="large" aria-pressed="false" aria-label="Large text">A</button>
+                      <button type="button" data-reader-size="extra-large" aria-pressed="false" aria-label="Extra large text">A</button>
+                    </div>
+                  </div>
+                  <div class="reader-settings__group" role="group" aria-label="Theme">
+                    <span class="reader-settings__label">Page color</span>
+                    <div class="reader-settings__options">
+                      <button type="button" data-reader-theme="light" aria-pressed="false">Light</button>
+                      <button type="button" data-reader-theme="dark" aria-pressed="false">Dark</button>
+                      <button type="button" data-reader-theme="sepia" aria-pressed="false">Sepia</button>
+                      <button type="button" data-reader-theme="auto" aria-pressed="true">Auto</button>
+                    </div>
+                  </div>
+                </div>
+              </details>
+              <button type="button" class="reader-control" data-reader-action="quiet" aria-pressed="false">Quiet mode</button>
+            </div>
+            <div class="reader-controls__tools">
+              {hasNotes && <button type="button" class="reader-control reader-control--margins" data-reader-action="margins" aria-expanded="false">Open the margins</button>}
+              {!isPreview && <button type="button" class="reader-control" data-reader-action="save" aria-pressed="false">
+                <span class="reader-save-icon" aria-hidden="true"></span>
+                <span>Save essay</span>
+              </button>}
+            </div>
+          </div>
+        </div>
+
+        <div class="reader-extras wrap">
+          <ReaderListen />
+          {!isPreview && <ReaderVoiceNote postId={post.id} />}
+          {!isPreview && <OfflineEssay postId={post.id} title={title} />}
+        </div>
+
+        {image && (
+          <figure class="reader-cover wrap">
+            <Image
+              src={image}
+              alt={imageAlt ?? ""}
+              widths={[480, 768, 1080, 1440]}
+              sizes="(max-width: 52rem) calc(100vw - 3rem), min(75rem, 91vw)"
+              loading="eager"
+              fetchpriority="high"
+            />
+          </figure>
+        )}
+        {!image && documentSource?.cover && (
+          <figure class="reader-cover reader-cover--document wrap">
+            <img src={documentSource.cover.src} alt={documentSource.cover.alt}
+              width={documentSource.cover.width} height={documentSource.cover.height}
+              loading="lazy" decoding="async" />
+          </figure>
+        )}
+        {!image && documentSource && !documentSource.cover && (
+          <div class="reader-cover reader-cover--paper wrap" aria-hidden="true"><span></span></div>
+        )}
+
+        <article class="reader-article wrap" aria-labelledby="reader-title">
+          {documentSource?.format === "pdf" && documentSource.originalUrl && (
+            <DocumentOriginal url={documentSource.originalUrl} filename={documentSource.filename} complex={documentSource.complex} />
+          )}
+          {hasOutline && (
+            <details class="reader-outline">
+              <summary>In this note</summary>
+              <nav aria-label="Article outline">
+                <ul>
+                  {outline.map(({ depth, slug, text }) => <li data-depth={depth}><a href={`#${slug}`}>{text}</a></li>)}
+                </ul>
+              </nav>
+            </details>
+          )}
+          <div class="reader-prose" data-reader-prose>
+            <Content />
+          </div>
+          <AnnotatedSources post={post} />
+        </article>
+      </div>
+      {!isPreview && <div class="wrap">
+        <div class="reader-end" data-reader-end>
+          <p class="reader-end__mark" aria-hidden="true">∎</p>
+          <div class="reader-participation">
+            {beforeQuestion && <RevisitImpression postId={post.id} />}
+            <ReaderFeedback postId={post.id} question={reflectionQuestion} minutes={minutes} />
+            {post.data.fieldNotePrompt && <ReaderFieldNotes postId={post.id} prompt={post.data.fieldNotePrompt} />}
+            <details class="reader-end-details" data-reader-quote-picker data-reader-participation hidden>
+              <summary>Save or share a quote</summary>
+              <label for="reader-quote-choice">Choose a passage</label>
+              <select id="reader-quote-choice" data-reader-quote-choice></select>
+              <div class="reader-end-details__actions">
+                <button type="button" class="button" data-reader-action="save-quote">Save quote</button>
+                <button type="button" class="text-link" data-reader-action="copy-quote">Copy quote and link</button>
+                <button type="button" class="text-link" data-reader-action="image-quote" hidden>Quote image</button>
+                <button type="button" class="text-link" data-reader-action="share-quote" hidden>Share quote <span aria-hidden="true">↗</span></button>
+              </div>
+            </details>
+            <details id="reply" class="reader-end-details">
+              <summary>Write back to me</summary>
+              {email ? (
+                <div class="reader-end-details__actions">
+                  <a class="button" href={`mailto:${email}?subject=${encodeURIComponent(`Re: ${title}`)}`}>Open email draft</a>
+                </div>
+              ) : (
+                <form action="/api/reply/" method="post" data-reader-reply-form>
+                  <input type="hidden" name="post" value={post.id} />
+                  <input type="hidden" name="returnTo" value={`${postPath(post)}#reply`} />
+                  <input type="text" name="website" autocomplete="off" tabindex="-1" aria-hidden="true" hidden />
+                  <label for="reader-reply-text">What did the essay bring to mind?</label>
+                  <textarea id="reader-reply-text" name="message" rows="4" minlength="2" maxlength="3000" required></textarea>
+                  <label for="reader-reply-email">Your email (optional)</label>
+                  <input id="reader-reply-email" name="email" type="email" autocomplete="email" maxlength="254" />
+                  <div class="reader-end-details__actions">
+                    <button type="submit" class="button">Send a private reply</button>
+                  </div>
+                  <p class="reader-reply-status" role="status" aria-atomic="true" data-reader-reply-status></p>
+                </form>
+              )}
+            </details>
+          </div>
+        </div>
+      </div>}
+
+      <div class="reader-selection" data-reader-selection hidden>
+        <button type="button" data-reader-action="save-selection">Save quote</button>
+        <button type="button" data-reader-action="copy-selection">Copy highlighted quote <span aria-hidden="true">↗</span></button>
+        <button type="button" data-reader-action="image-selection" hidden>Quote image</button>
+        <button type="button" data-reader-action="dismiss-selection" aria-label="Dismiss quote controls">×</button>
+      </div>
+      <p class="reader-status" data-reader-status role="status" aria-atomic="true"></p>
+      <CopyTextDialog id="reader-copy" />
+      <QuoteImageDialog id="reader-quote-image" />
+      {!isPreview && <FinishedNote postId={post.id} />}
+
+      <div class="reader-after wrap">
+        <ReaderConnections items={connections} />
+        {otherRelated.length > 0 && (
+          <section class="reader-related" aria-labelledby="reader-related-title">
+            <p class="eyebrow">Keep reading</p>
+            <h2 id="reader-related-title">Follow the thread</h2>
+            <ul>
+              {otherRelated.map((entry) => (
+                <li>
+                  <a href={postPath(entry)}>
+                    <span>{entry.data.title}</span>
+                    <span class="reader-related__minutes">{entry.data.minutes} min <span aria-hidden="true">↗</span></span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {!isPreview && <NewsletterForm id="essay-newsletter" class="reader-newsletter" />}
+      </div>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import { initReader } from "../../scripts/reader";
+
+  initReader();
+  document.addEventListener("astro:page-load", initReader);
+  document.addEventListener("second-ink:take-revealed", initReader);
+</script>

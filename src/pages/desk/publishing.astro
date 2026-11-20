@@ -1,0 +1,128 @@
+---
+import Base from '../../layouts/Base.astro';
+import '../../styles/publishing-desk.css';
+import '../../styles/reader.css';
+---
+
+<Base title="Publishing desk" description="Private drafts, revision history, and author recordings." noindex>
+  <div class="wrap publishing-desk" data-publishing-desk>
+    <header class="publishing-desk__heading">
+      <div><p class="eyebrow">Private desk</p><h1>Publishing desk</h1></div>
+      <a class="text-link" href="/desk/responses/">Reader responses</a>
+    </header>
+    <noscript><p>Turn on JavaScript to open your publishing desk.</p></noscript>
+    <p class="publishing-desk__status" data-desk-status role="status" aria-atomic="true">Opening the desk…</p>
+    <form data-desk-login hidden>
+      <label for="publishing-password">Owner password</label>
+      <div class="publishing-desk__actions">
+        <input id="publishing-password" type="password" name="password" required autocomplete="current-password" />
+        <button type="submit" class="button">Open the desk</button>
+      </div>
+    </form>
+
+    <div data-desk-content hidden>
+      <nav class="publishing-desk__bar" aria-label="Publishing desk">
+        <a class="text-link" href="#publishing-essays">Essays</a>
+        <a class="text-link" href="#publishing-voice">Voice notes</a>
+        <button type="button" class="text-link" data-desk-logout>Sign out</button>
+      </nav>
+      <section class="publishing-desk__section" aria-labelledby="publishing-essays">
+        <h2 id="publishing-essays">Essays</h2>
+        <div class="publishing-desk__shelf">
+          <div>
+            <label for="publishing-entries">Open an essay</label>
+            <select id="publishing-entries" data-desk-entries><option value="">New essay</option></select>
+          </div>
+          <p class="publishing-desk__status" data-desk-entry-status></p>
+        </div>
+        <div class="publishing-desk__grid">
+          <form data-desk-editor>
+            <details class="publishing-desk__import">
+              <summary>Import a Word document or PDF</summary>
+              <label for="publishing-document" class="sr-only">Original document</label>
+              <input id="publishing-document" type="file" accept=".docx,.pdf" data-desk-document />
+              <p class="publishing-desk__hint">Up to 20 MiB. A PDF needs selectable text. The original is kept with each draft.</p>
+              <button type="button" class="button" data-desk-import>Bring in the text</button>
+            </details>
+            <label for="publishing-title">Title</label>
+            <input id="publishing-title" name="title" required maxlength="180" />
+            <label for="publishing-slug">Web address</label>
+            <input id="publishing-slug" name="slug" required maxlength="80" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" aria-describedby="publishing-address-hint" />
+            <p class="publishing-desk__hint" id="publishing-address-hint">Use lowercase letters, numbers, and dashes.</p>
+            <label for="publishing-description">Short summary</label>
+            <textarea id="publishing-description" name="description" required maxlength="450" rows="2"></textarea>
+            <label for="publishing-body">Essay text</label>
+            <textarea id="publishing-body" name="body" required maxlength="48000" rows="12" aria-describedby="publishing-format-hint"></textarea>
+            <p class="publishing-desk__hint" id="publishing-format-hint">Markdown works here. Write links as [the words](/about/).</p>
+            <p class="publishing-desk__hint" data-desk-filename></p>
+            <p class="publishing-desk__hint" data-desk-sorting hidden></p>
+            <div class="publishing-desk__actions">
+              <button type="submit" class="button">Save draft</button>
+              <button type="button" class="button" data-desk-publish disabled>Publish saved draft</button>
+              <a class="text-link" data-desk-live hidden>Open live essay</a>
+            </div>
+            <p class="publishing-desk__status" data-desk-editor-status role="status" aria-atomic="true"></p>
+          </form>
+
+          <div class="publishing-desk__review">
+            <div class="publishing-desk__preview-heading">
+              <h3>Reading preview</h3>
+              <button type="button" class="text-link" aria-pressed="false" data-desk-mobile>Phone width</button>
+            </div>
+            <article class="publishing-desk__preview" data-desk-preview>
+              <h4 data-desk-preview-title>Untitled essay</h4>
+              <p data-desk-preview-description></p>
+              <div class="reader-prose" data-desk-preview-body></div>
+            </article>
+            <details class="publishing-desk__supplement">
+              <summary>Changes since publication</summary>
+              <p class="publishing-desk__hint" data-desk-diff-status>Publish a draft to start comparing.</p>
+              <div class="publishing-desk__diff" data-desk-diff></div>
+            </details>
+            <details class="publishing-desk__supplement">
+              <summary>Review links</summary>
+              <p class="publishing-desk__hint">Second Ink checks its own pages. Open outside links to review them.</p>
+              <button type="button" class="button" data-desk-links>Check links</button>
+              <p class="publishing-desk__status" data-desk-link-status role="status"></p>
+              <ul data-desk-link-list></ul>
+            </details>
+          </div>
+        </div>
+        <details class="publishing-desk__supplement" data-desk-history hidden>
+          <summary>Version history</summary>
+          <p class="publishing-desk__hint">Open any saved version. Restore it as a new draft before publishing.</p>
+          <ul data-desk-history-list></ul>
+          <div class="publishing-desk__actions">
+            <button type="button" class="text-link" data-desk-history-next hidden>Older versions</button>
+            <button type="button" class="text-link" data-desk-restore hidden>Restore this version</button>
+            <a class="text-link" data-desk-original hidden>Download this original</a>
+            <button type="button" class="text-link" data-desk-withdraw hidden>Take the live essay down</button>
+          </div>
+        </details>
+      </section>
+      <section class="publishing-desk__section" aria-labelledby="publishing-voice">
+        <h2 id="publishing-voice">Voice notes</h2>
+        <p>Leave a short recording about what brought you to an essay.</p>
+        <form class="publishing-desk__voice" data-desk-voice>
+          <label for="voice-essay">Published essay</label>
+          <select id="voice-essay" name="post" required><option value="">Choose an essay</option></select>
+          <label for="voice-audio">Recording</label>
+          <input id="voice-audio" name="audio" type="file" accept=".mp3,.m4a,.wav,.ogg,audio/mpeg,audio/mp4,audio/wav,audio/ogg" aria-describedby="voice-audio-hint" />
+          <p id="voice-audio-hint" class="publishing-desk__hint">MP3, M4A, WAV, or Ogg. Up to 16 MiB.</p>
+          <audio controls preload="none" aria-label="Current voice note" data-desk-voice-player hidden></audio>
+          <label for="voice-transcript">Transcript</label>
+          <textarea id="voice-transcript" name="transcript" required maxlength="12000" rows="5"></textarea>
+          <div class="publishing-desk__actions">
+            <button type="submit" class="button">Save live voice note</button>
+            <button type="button" class="text-link" data-desk-voice-remove hidden>Remove voice note</button>
+          </div>
+          <p class="publishing-desk__status" data-desk-voice-status role="status" aria-atomic="true"></p>
+        </form>
+      </section>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import '../../scripts/publishing-desk';
+</script>

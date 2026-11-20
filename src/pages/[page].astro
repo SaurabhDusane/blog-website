@@ -1,0 +1,25 @@
+---
+import type { InferGetStaticPropsType } from 'astro';
+import { render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { getPages } from '../lib/content';
+
+export async function getStaticPaths() {
+  return (await getPages()).map((page) => ({ params: { page: page.id }, props: { page } }));
+}
+
+const { page } = Astro.props as InferGetStaticPropsType<typeof getStaticPaths>;
+const { Content } = await render(page);
+---
+<Base title={page.data.title} description={page.data.description}>
+  <article class="wrap interior editorial-page">
+    <h1>{page.data.title}</h1>
+    <div class="page-body"><Content /></div>
+  </article>
+</Base>
+
+<style>
+  .editorial-page { max-width: 49rem; }
+  .page-body { margin-block-start: 2.1rem; font: 400 1.2rem/1.7 var(--font-body); }
+  .page-body :global(h2) { margin-block: 1.5em 0.55em; font-size: 2.4rem; }
+</style>

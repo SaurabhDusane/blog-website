@@ -1,0 +1,39 @@
+---
+interface Props {
+  id: string;
+  label: string;
+  href?: string;
+  linkLabel?: string;
+  kind?: "observation" | "hunch" | "objection";
+}
+
+const { id, label, href, linkLabel = "Follow this thread", kind } = Astro.props;
+const kinds = {
+  observation: "What I saw",
+  hunch: "What I’m guessing",
+  objection: "The strongest objection",
+};
+const kicker = kind && kinds[kind];
+---
+
+{kicker && <a class="margin-note__trigger" href={`#${id}`} aria-label={`${kicker}. ${label}`} data-margin-note-ref>{kicker}</a>}
+<aside class="margin-note" id={id} aria-labelledby={kicker ? `${id}-kind ${id}-label` : `${id}-label`} data-margin-note>
+  <p class="margin-note__kicker" id={kicker ? `${id}-kind` : undefined}>{kicker ?? "In the margin"}</p>
+  <p id={`${id}-label`} class="margin-note__title">{label}</p>
+  <div class="margin-note__body"><slot /></div>
+  {href && <a class="margin-note__link" href={href}>{linkLabel} <span aria-hidden="true">↗</span></a>}
+</aside>
+
+<style>
+  a.margin-note__trigger {
+    inline-size: fit-content;
+    max-inline-size: 100%;
+    min-block-size: 2rem;
+    margin-block: -.4rem .8rem;
+    padding-block: .35rem;
+    font: 500 .9rem/1.4 var(--font-ui);
+  }
+
+  .margin-note__trigger[aria-expanded="true"] { font-weight: 600; }
+  :global(.reader[data-quiet]) .margin-note__trigger { display: none; }
+</style>

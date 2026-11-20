@@ -7,8 +7,15 @@ export const maxFileBytes = 40 * 1024 * 1024;
 export const metadataFields = new Set([
   'title', 'date', 'tags', 'summary', 'status', 'publish-date', 'source-title', 'source-author',
   'source-url', 'source', 'why-i-picked-this', 'claim', 'claim-question', 'question', 'archive-url',
-  'mood', 'author', 'update', 'reading-paths', 'series',
+  'mood', 'author', 'update', 'reading-paths', 'series', 'connection', 'what-i-think-now', 'kind', 'follow-up',
+  'source-note', 'field-note-prompt',
 ]);
+export const repeatedMetadataFields = new Set(['update', 'connection', 'what-i-think-now', 'source-note']);
+
+export function metadataField(value) {
+  const field = value.trim().toLowerCase().replace(/\s+/g, '-');
+  return field === 'connections' ? 'connection' : field;
+}
 
 export function validDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
@@ -18,8 +25,9 @@ export function validDate(value) {
 
 export async function documentSources(root) {
   const inputs = [];
-  for (const draft of [false, true]) {
-    const prefix = draft ? 'posts/drafts' : 'posts';
+  for (const prefix of ['posts', 'posts/essays', 'posts/drafts', 'posts/threads']) {
+    const draft = prefix === 'posts/drafts';
+    const looseThread = prefix === 'posts/threads';
     const entries = await list(join(root, prefix));
     const metadata = new Map(entries.filter((entry) => entry.isFile() && /\.ya?ml$/i.test(entry.name))
       .map((entry) => [entry.name, prefix + '/' + entry.name]));
@@ -30,7 +38,7 @@ export async function documentSources(root) {
       const sidecars = extension === 'pdf' ? [...metadata]
         .filter(([name]) => name.replace(/\.ya?ml$/i, '') === stem)
         .map(([, path]) => path) : [];
-      inputs.push({ path: prefix + '/' + item.name, filename: item.name, draft, format: extension, stem, sidecars });
+      inputs.push({ path: prefix + '/' + item.name, filename: item.name, draft, looseThread, format: extension, stem, sidecars });
     }
   }
   return inputs.sort((first, second) => first.path.localeCompare(second.path, 'en'));
@@ -64,9 +72,16 @@ export async function readPdfMetadata(root, sidecars) {
   if (!(values instanceof Map)) throw new Error('The PDF companion file needs one field per line.');
   const metadata = {};
   for (const [key, value] of values) {
-    const field = typeof key === 'string' ? key.toLowerCase() : '';
+    const field = typeof key === 'string' ? metadataField(key) : '';
     if (!metadataFields.has(field)) continue;
-    if (typeof value === 'string' && value.trim()) metadata[field] = value.trim();
+    if (field === 'update' && typeof value === 'string' && value.trim()) {
+      metadata[field] = value.trim();
+    } else if (repeatedMetadataFields.has(field)) {
+      const items = (Array.isArray(value) ? value : [value])
+        .filter((item) => typeof item === 'string' && item.trim())
+        .map((item) => item.trim());
+      if (items.length) metadata[field] = [...(metadata[field] ?? []), ...items];
+    } else if (typeof value === 'string' && value.trim()) metadata[field] = value.trim();
     else if (Array.isArray(value) && ['tags', 'series', 'reading-paths'].includes(field)) {
       metadata[field] = value.filter((item) => typeof item === 'string').join(', ');
     }

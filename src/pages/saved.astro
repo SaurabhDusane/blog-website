@@ -1,0 +1,176 @@
+---
+import Base from '../layouts/Base.astro';
+import CopyTextDialog from '../components/CopyTextDialog.astro';
+import EssayRow from '../components/EssayRow.astro';
+import QuoteImageDialog from '../components/QuoteImageDialog.astro';
+import { getPosts, postPath } from '../lib/content';
+import '../styles/discovery.css';
+
+const posts = await getPosts();
+---
+
+<Base title="Saved" description="Return to your essays and saved quotes." noindex>
+  <div class="wrap discovery saved-page" data-library>
+    <header class="discovery__header">
+      <h1>Saved</h1>
+      <p>Essays you’ve set aside, quotes you’ve kept, and places you’ve left off. This shelf stays on this device.</p>
+    </header>
+
+    <noscript><p>Enable JavaScript to open this device’s saved essays and quotes. You can still <a href="/explore/">browse the index</a>.</p></noscript>
+    <div class="saved-page__shelves" data-library-shelves hidden>
+      <section aria-labelledby="bookmarks-heading">
+        <header class="index-heading">
+          <h2 id="bookmarks-heading" data-bookmark-heading tabindex="-1">Bookmarked</h2>
+          <p data-bookmark-count></p>
+        </header>
+        <ul class="essay-index" data-bookmarks role="list"></ul>
+        <p class="saved-page__empty" data-bookmark-empty hidden>Nothing tucked away yet. Open <a href="/explore/">an essay</a> and save it for later.</p>
+      </section>
+
+      <section aria-labelledby="recent-heading">
+        <header class="index-heading">
+          <h2 id="recent-heading">Recently read</h2>
+          <p data-recent-count></p>
+        </header>
+        <ul class="essay-index" data-recent role="list"></ul>
+        <p class="saved-page__empty" data-recent-empty hidden>Your reading trail starts with the <a href="/start/">first essay</a>.</p>
+      </section>
+
+      <section class="saved-page__quote-shelf" aria-labelledby="quote-heading">
+        <header class="index-heading">
+          <h2 id="quote-heading" data-quote-heading tabindex="-1">Saved quotes</h2>
+          <p data-quote-count></p>
+        </header>
+        <details class="saved-page__pattern" data-quote-pattern hidden>
+          <summary data-pattern-title></summary>
+          <ul role="list" data-pattern-quotes></ul>
+        </details>
+        <ul class="essay-index" data-saved-quotes role="list"></ul>
+        <p class="saved-page__empty" data-quote-empty hidden>Highlight a passage in an essay and select Save quote. You can also choose a passage at the end of an essay.</p>
+      </section>
+      <p class="discovery-sr-only" data-library-status role="status"></p>
+    </div>
+
+    <template data-quote-template>
+      <li class="saved-page__quote" data-quote-row>
+        <figure>
+          <blockquote><p data-quote-text></p></blockquote>
+          <figcaption><a data-quote-source></a><span data-quote-source-unavailable hidden></span></figcaption>
+        </figure>
+        <div class="saved-page__quote-actions">
+          <button class="saved-page__remove" type="button" data-quote-action="copy">Copy quote</button>
+          <button class="saved-page__remove" type="button" data-quote-action="image" hidden>Quote image</button>
+          <button class="saved-page__remove" type="button" data-quote-action="remove">Remove</button>
+        </div>
+      </li>
+    </template>
+    <CopyTextDialog id="saved-copy" />
+    <QuoteImageDialog id="saved-quote-image" />
+
+    {posts.map((post) => (
+      <>
+        <template data-bookmark-row={post.id} data-post-topics={post.data.topics.map(({ id }) => id).sort().join(' ')}>
+          <EssayRow href={postPath(post)} title={post.data.title} minutes={post.data.minutes} compact>
+            <button class="saved-page__remove" type="button" data-remove-bookmark={post.id} data-post-title={post.data.title} aria-label={`Remove ${post.data.title} from Saved`}>Remove</button>
+          </EssayRow>
+        </template>
+        <template data-recent-row={post.id}>
+          <EssayRow href={postPath(post)} title={post.data.title} minutes={post.data.minutes} compact>
+            <span class="saved-page__completion" data-completion></span>
+          </EssayRow>
+        </template>
+      </>
+    ))}
+  </div>
+</Base>
+
+<style>
+  .saved-page__remove {
+    background: none;
+    border: 0;
+    color: var(--blue);
+    cursor: pointer;
+    font: inherit;
+    min-block-size: 1.5rem;
+    padding: .125rem 0 .125rem .3rem;
+    text-decoration: underline;
+    text-underline-offset: .15em;
+  }
+
+  .saved-page__quote-shelf { grid-column: 1 / -1; }
+
+  .saved-page__pattern {
+    margin-block: 1rem .25rem;
+    padding: .65rem 1rem;
+    background: var(--wash);
+    border-inline-start: 2px solid var(--blue);
+  }
+
+  .saved-page__pattern summary {
+    min-block-size: 2rem;
+    padding-block: .3rem;
+    color: var(--blue);
+    cursor: pointer;
+    font: 600 .9rem/1.45 var(--font-ui);
+  }
+
+  .saved-page__pattern ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+    gap: 1rem;
+    margin: .65rem 0 .45rem;
+    padding: 0;
+    list-style: none;
+  }
+
+  .saved-page__pattern li { border-block-start: 1px solid var(--line); padding-block-start: .55rem; min-width: 0; }
+  .saved-page__pattern blockquote { margin: 0 0 .35rem; overflow-wrap: anywhere; font: 1rem/1.48 var(--font-body); }
+  .saved-page__pattern a { display: inline-block; min-block-size: 1.75rem; overflow-wrap: anywhere; font: .8rem/1.4 var(--font-ui); }
+
+  .saved-page__quote {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: .25rem 1.5rem;
+    padding-block: 1.3rem;
+    border-block-end: 1px solid var(--line);
+  }
+
+  .saved-page__quote figure {
+    flex: 1 1 18rem;
+    min-width: 0;
+    margin: 0;
+    padding-inline-start: 1rem;
+    border-inline-start: 2px solid var(--blue);
+  }
+
+  .saved-page__quote blockquote {
+    margin: 0;
+    font: clamp(1.05rem, 2.2vw, 1.3rem)/1.5 var(--font-body);
+    overflow-wrap: anywhere;
+  }
+
+  .saved-page__quote blockquote p { margin: 0 0 .4rem; }
+
+  .saved-page__quote figcaption { color: var(--muted); font: .8rem/1.35 var(--font-ui); }
+
+  .saved-page__quote figcaption a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 1.75rem;
+    overflow-wrap: anywhere;
+  }
+
+  .saved-page__quote-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1rem;
+  }
+
+  .saved-page__quote-actions button { min-block-size: 2.75rem; }
+</style>
+
+<script>
+  import '../scripts/saved';
+</script>

@@ -1,7 +1,26 @@
 [build]
-  command = "npm run build"
-  publish = "dist"
+  command = "npm run build:netlify"
+  publish = ".netlify-output"
+  edge_functions = "netlify/edge-functions"
 
 [build.environment]
   NODE_VERSION = "22"
-  ASTRO_TELEMETRY_DISABLED = "1"
+
+[functions]
+  directory = "netlify/functions"
+
+[context.deploy-preview.environment]
+  PUBLIC_PLAUSIBLE_DOMAIN = ""
+
+[context.branch-deploy.environment]
+  PUBLIC_PLAUSIBLE_DOMAIN = ""
+
+[[headers]]
+  for = "/desk/responses/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/_astro/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

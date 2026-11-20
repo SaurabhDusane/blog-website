@@ -8,7 +8,11 @@ import { placeFootnotes } from './word-footnotes.mjs';
 import { createWordImportCache } from './word-import-cache.mjs';
 import { convertDocx } from './convert-docx.mjs';
 import { convertPdf } from './import-pdf.mjs';
-import { committedDate, documentSources, editDate, metadataFields, readPdfMetadata, readSource, validDate } from './document-input.mjs';
+import { essayTopics, sortEssay } from './essay-classifier.mjs';
+import {
+  committedDate, documentSources, editDate, metadataField, metadataFields, readPdfMetadata, readSource,
+  repeatedMetadataFields, validDate,
+} from './document-input.mjs';
 import { createSnapshotStore, digest, findRenames, git, list, pruneOutput, readPublicationState, syncOutput, writeIfChanged } from './document-state.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -23,7 +27,8 @@ const pdfUrl = '/document-pdfs/';
 const preview = process.env.SECOND_INK_INCLUDE_DRAFTS === '1';
 const stateManaged = process.env.SECOND_INK_STATE_MANAGED === '1';
 const moods = new Set(['reflective', 'practical', 'curious']);
-const fieldLine = /^([a-z][a-z0-9-]{0,40})\s*:\s*(.*)$/i;
+const fieldLine = /^([a-z][a-z0-9 -]{0,40})\s*:\s*(.*)$/i;
+const postId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const permanentFileProblem = /password-protected|damaged or is not a \.docx|does not contain a readable PDF|PDF has no readable text/i;
 const buildTime = Date.now();
 const heading = /^h[1-6]$/;
@@ -31,7 +36,14 @@ const proseTags = new Set(['p', 'li', 'td', 'th', 'blockquote']);
 const blockTags = new Set([...proseTags, 'ol', 'ul', 'tr']);
 const segmenter = new Intl.Segmenter('en', { granularity: 'word' });
 const sentences = new Intl.Segmenter('en', { granularity: 'sentence' });
-const legacyPosts = new Map();
+const legacyPosts = new Map([
+  ['posts/essays/2026-11-17_what-an-unfinished-page-gives-me.docx', {
+    slug: 'what-an-unfinished-page-gives-me', publishedAt: '2026-11-17',
+  }],
+  ['posts/essays/2026-11-18_a-little-less-hurry.docx', {
+    slug: 'a-little-less-hurry', publishedAt: '2026-11-18T07:00:00.000Z',
+  }],
+]);
 
 const allowedHtml = {
   allowedTags: [
@@ -98,7 +110,7 @@ function includesImage(node) {
 }
 
 function wordHeader(fragment) {
-  const metadata = { updates: [] };
+  const metadata = {};
   const nodes = fragment.childNodes;
   let styledTitle;
   let end = 0;
@@ -133,7 +145,7 @@ function wordHeader(fragment) {
     if (!match) break;
     end += 1;
     const [, key, value] = match;
-    const field = key.toLowerCase();
+    const field = metadataField(key);
     if (!metadataFields.has(field)) continue;
     headerFields += 1;
     headers.push([field, value]);
@@ -145,7 +157,7 @@ function wordHeader(fragment) {
       if (value && (field === 'status' || field === 'publish-date') && metadata[field]) {
         throw new Error('Use only one ' + field + ' header.');
       }
-      if (value && field === 'update') metadata.updates.push(value);
+      if (value && repeatedMetadataFields.has(field)) (metadata[field] ??= []).push(value);
       else if (value) metadata[field] = value;
     }
   }
@@ -277,7 +289,7 @@ function prepareDocument(source, converted, sidecar) {
   const fallbackTitle = filenameWords.replace(/^\p{L}/u, (character) => character.toLocaleUpperCase('en'));
   const fragment = parseFragment(sanitizeHtml(converted.html, allowedHtml));
   const { metadata, styledTitle } = source.format === 'docx'
-    ? wordHeader(fragment) : { metadata: { ...sidecar, updates: sidecar.update ? [sidecar.update] : [] } };
+    ? wordHeader(fragment) : { metadata: sidecar };
   const firstHeading = descendants(fragment, 'h1').find((node) => cleanText(node));
   const firstParagraph = fragment.childNodes.find((node) => node.tagName === 'p' && cleanText(node));
   const firstLine = converted.firstLine || (firstParagraph && textFirstLine(firstParagraph).split('\n').find((line) => line.trim())?.trim());
@@ -294,7 +306,51 @@ function prepareDocument(source, converted, sidecar) {
   return { fragment, metadata, rawTitle, filenameDate: validDate(datedName?.[1]) };
 }
 
-function renderDocument(source, prepared, converted, authorIds, paths) {
+function editorialEntries(metadata, warnings, sourceIds) {
+  const connections = (metadata.connection ?? []).slice(0, 8).flatMap((value) => {
+    const match = value.match(/^([a-z0-9]+(?:-[a-z0-9]+)*)\s*\|\s*(\S.*)$/);
+    if (match) return [{ post: match[1], reason: shorten(match[2], 600) }];
+    warnings.push('Connection needs a post slug, a pipe, and a reason. This connection was skipped.');
+    return [];
+  });
+  const thoughtsNow = (metadata['what-i-think-now'] ?? []).slice(0, 12).flatMap((value) => {
+    const [date, note, link, label] = value.split('|').map((part) => part.trim());
+    if (!validDate(date) || !note) {
+      warnings.push('What I think now needs a date, a pipe, and a note. This entry was skipped.');
+      return [];
+    }
+    const href = link && (/^\/(?!\/)[^\s\\]*$/.test(link) ? link : sourceUrl(link));
+    if (link && !href) warnings.push('A What I think now link was skipped because its address was invalid.');
+    return [{ date, note: shorten(note, 600), href: href || undefined, linkLabel: href && label ? shorten(label, 180) : undefined }];
+  });
+  const citedIds = new Set();
+  const sources = (metadata['source-note'] ?? []).flatMap((value) => {
+    const match = value.match(/^([a-z0-9]+(?:-[a-z0-9]+)*)\s*\|\s*(supports|complicates|background)\s*\|\s*(\S.*)$/i);
+    if (!match) {
+      warnings.push('Source note needs a source ID, a role (supports, complicates, or background), and a note, separated by pipes. This source note was skipped.');
+      return [];
+    }
+    const [, sourceId, role, note] = match;
+    const source = sourceId.toLowerCase();
+    if (!sourceIds.has(source)) {
+      warnings.push(`Source note refers to ${source}, which is missing from src/content/sources/. This source note was skipped.`);
+      return [];
+    }
+    if (citedIds.has(source)) {
+      warnings.push(`Add one source note for ${source} per essay. This duplicate was skipped.`);
+      return [];
+    }
+    citedIds.add(source);
+    return [{ source, role: role.toLowerCase(), note: shorten(note, 600) }];
+  });
+  return {
+    connections: connections.length ? connections : undefined,
+    thoughtsNow: thoughtsNow.length ? thoughtsNow : undefined,
+    sources: sources.length ? sources : undefined,
+  };
+}
+
+function renderDocument(source, prepared, converted, authorIds, paths, sourceIds) {
   const { fragment, metadata, rawTitle } = prepared;
   const files = new Map(converted.images);
   const cover = takeCover(fragment, files) ?? converted.cover;
@@ -317,6 +373,10 @@ function renderDocument(source, prepared, converted, authorIds, paths) {
   ), 0);
   const firstParagraph = fragment.childNodes.find((node) => node.tagName === 'p' && cleanText(node));
   const description = excerpt(metadata.summary || (firstParagraph && cleanText(firstParagraph)) || passages[0] || title);
+  const sorting = !tags.size || !moods.has(mood) ? sortEssay({ title, description, body: passages.join('\n') }) : undefined;
+  if (!tags.size) {
+    for (const id of sorting?.topics ?? []) tags.set(id, essayTopics[id]);
+  }
   const warnings = [...converted.warnings];
   if (rawTitle.length > 180) warnings.push('The title was shortened to fit the reading desk.');
   if (!slugify(title)) warnings.push('The title uses characters that need a short generated URL.');
@@ -331,7 +391,7 @@ function renderDocument(source, prepared, converted, authorIds, paths) {
       warnings.push('A reading path was skipped because its ID did not match a path.');
       return false;
     });
-  const updates = metadata.updates.flatMap((value) => {
+  const updates = [metadata.update ?? []].flat().flatMap((value) => {
     const update = value.match(/^(\d{4}-\d{2}-\d{2})\s*\|\s*(\S.*)$/);
     if (!update || !validDate(update[1])) {
       warnings.push('Update needs YYYY-MM-DD | your note. This update was skipped.');
@@ -339,6 +399,9 @@ function renderDocument(source, prepared, converted, authorIds, paths) {
     }
     return [{ date: update[1], note: shorten(update[2], 600) }];
   }).sort((first, second) => second.date.localeCompare(first.date));
+  const looseThread = source.looseThread || metadata.kind?.toLowerCase() === 'thread';
+  const followUp = metadata['follow-up'];
+  if (looseThread && followUp && !postId.test(followUp)) warnings.push('Follow-up needs the slug of a published essay.');
 
   return {
     files, tags: [...tags], warnings, html,
@@ -348,7 +411,7 @@ function renderDocument(source, prepared, converted, authorIds, paths) {
       author,
       topics: [...tags.keys()],
       readingPaths,
-      mood: moods.has(mood) ? mood : 'reflective',
+      mood: moods.has(mood) ? mood : sorting?.mood ?? 'reflective',
       minutes: Math.max(1, Math.ceil(count / 220)),
       sourceTitle: metadata['source-title'] ? shorten(metadata['source-title'], 180) : undefined,
       sourceAuthor: metadata['source-author'] ? shorten(metadata['source-author'], 120) : undefined,
@@ -358,22 +421,27 @@ function renderDocument(source, prepared, converted, authorIds, paths) {
       claim: metadata.claim ? shorten(metadata.claim, 300) : undefined,
       claimQuestion: metadata['claim-question'] ? shorten(metadata['claim-question'], 240) : undefined,
       reflectionQuestion: metadata.question ? shorten(metadata.question, 240) : undefined,
+      fieldNotePrompt: metadata['field-note-prompt'] ? shorten(metadata['field-note-prompt'], 240) : undefined,
       updates,
+      looseThread: looseThread || undefined,
+      threadFollowUp: looseThread && followUp && postId.test(followUp) ? followUp : undefined,
+      ...editorialEntries(metadata, warnings, sourceIds),
       documentSource: { filename: source.filename, format: source.format, headings, passages, hasNotes: footnoteCount > 0, cover },
     },
   };
 }
 
-const [sources, reservedPosts, reservedTopics, authors, paths, state, store, cache] = await Promise.all([
+const [sources, reservedPosts, reservedTopics, authors, paths, sourceIds, state, store, cache] = await Promise.all([
   documentSources(root), authoredIds(posts), authoredIds(topics), authoredIds(join(root, 'src/content/authors')),
-  authoredIds(join(root, 'src/content/series')), readPublicationState(stateDirectory), createSnapshotStore(stateDirectory),
+  authoredIds(join(root, 'src/content/series')), authoredIds(join(root, 'src/content/sources')),
+  readPublicationState(stateDirectory), createSnapshotStore(stateDirectory),
   createWordImportCache(join(root, '.data', 'word-import-cache'), {
     node: process.versions.node,
     icu: process.versions.icu,
     platform: process.platform,
     arch: process.arch,
     sharp: sharp.versions,
-  }, ['./import-word.mjs', './convert-docx.mjs', './import-pdf.mjs', './pdf-worker.mjs', './document-input.mjs', './word-footnotes.mjs', './word-import-cache.mjs', '../package-lock.json']
+  }, ['./import-word.mjs', './essay-classifier.mjs', './essay-classifier-training.mjs', './convert-docx.mjs', './import-pdf.mjs', './pdf-worker.mjs', './document-input.mjs', './word-footnotes.mjs', './word-import-cache.mjs', '../package-lock.json']
     .map((file) => new URL(file, import.meta.url))),
 ]);
 if (!authors.size) throw new Error('Add an author profile before importing documents.');
@@ -381,6 +449,7 @@ if (!authors.size) throw new Error('Add an author profile before importing docum
 const revision = git(root, ['rev-parse', 'HEAD']).trim() || null;
 const renamed = findRenames(root, state.revision, revision);
 const currentPaths = new Set(sources.map(({ path }) => path));
+const renamedFrom = new Set([...renamed].filter(([path]) => currentPaths.has(path)).map(([, oldPath]) => oldPath));
 const previous = new Map(state.posts.map((post) => [post.path, post]));
 const active = new Set();
 const next = new Map();
@@ -415,7 +484,10 @@ function identify(source, hash) {
   const moved = oldPath && !currentPaths.has(oldPath) && previous.get(oldPath);
   if (direct || (moved && !active.has(moved.slug))) return direct || moved;
   if (!hash) return undefined;
-  const exact = state.posts.filter((post) => (!currentPaths.has(post.path) && !active.has(post.slug) && post.sourceHash === hash));
+  // A committed move takes priority over a separate upload with matching bytes.
+  const exact = state.posts.filter(({ path, slug, sourceHash }) => (
+    !currentPaths.has(path) && !renamedFrom.has(path) && !active.has(slug) && sourceHash === hash
+  ));
   return exact.length === 1 ? exact[0] : undefined;
 }
 
@@ -505,7 +577,7 @@ for (const source of sources) {
       note(source, visibility, visibility === 'draft' ? 'Reserved for private previews.' : 'Waiting for its scheduled publication.');
       continue;
     }
-    const post = renderDocument(source, prepared, converted, authors, paths);
+    const post = renderDocument(source, prepared, converted, authors, paths, sourceIds);
     const legacy = legacyPosts.get(source.path);
     const hidden = visibility !== 'published';
     const allocation = existing || legacy || postSlug((hidden ? 'Draft ' : '') + post.data.title, sourceHash);

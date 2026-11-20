@@ -9,9 +9,15 @@
   "packageManager": "npm@10.9.2",
   "scripts": {
     "posts:import": "node scripts/import-word.mjs",
+    "predev": "npm run posts:import",
+    "dev": "astro dev",
     "prebuild": "npm run posts:import",
-    "build": "astro build",
-    "check": "npm run build && node scripts/verify-test.mjs"
+    "build": "astro build && node scripts/build-worker.mjs",
+    "prebuild:netlify": "npm run posts:import",
+    "build:netlify": "astro build && node scripts/prepare-netlify.mjs",
+    "preview": "node scripts/preview.mjs",
+    "precheck": "npm run posts:import",
+    "check": "astro check"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.0",
@@ -21,7 +27,9 @@
     "@fontsource-variable/source-serif-4": "^5.2.0",
     "@fontsource/instrument-serif": "^5.2.0",
     "astro": "^5.16.0",
+    "diff": "8.0.4",
     "mammoth": "^1.13.0",
+    "micromark": "4.0.3",
     "parse5": "^8.1.1",
     "pdfjs-dist": "6.5.438",
     "sanitize-html": "^2.17.0",

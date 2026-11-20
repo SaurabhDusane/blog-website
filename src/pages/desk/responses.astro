@@ -1,0 +1,180 @@
+---
+import Base from '../../layouts/Base.astro';
+import DeskFieldNotes from '../../components/DeskFieldNotes.astro';
+import { feelings } from '../../lib/feelings';
+import { stances } from '../../lib/stances';
+import '../../styles/response-desk.css';
+---
+
+<Base title="Reader responses" description="Second Ink’s private response desk." noindex>
+  <div class="wrap interior response-desk" data-response-desk>
+    <header class="response-desk__header">
+      <div>
+        <p class="eyebrow">Private desk</p>
+        <h1>Reader responses</h1>
+      </div>
+      <button class="text-link response-desk__link" type="button" data-desk-logout hidden>Sign out</button>
+    </header>
+
+    <noscript><p>Turn on JavaScript to sign in to the response desk.</p></noscript>
+    <p class="response-desk__status" role="status" aria-atomic="true" data-desk-status></p>
+
+    <form class="response-desk__sign-in" action="/api/admin/session/" method="post" data-desk-login hidden>
+      <label for="desk-password">Owner password</label>
+      <div>
+        <input id="desk-password" type="password" name="password" required autocomplete="current-password" />
+        <button type="submit" class="button">Open the desk</button>
+      </div>
+    </form>
+
+    <div data-desk-content hidden>
+      <p><a class="text-link" href="/desk/publishing/">Open the publishing desk</a></p>
+      <div class="response-desk__toolbar">
+        <label for="desk-post">Essay</label>
+        <select id="desk-post" data-desk-post>
+          <option value="">All essays</option>
+        </select>
+        <p data-desk-filter-count></p>
+      </div>
+
+      <section class="response-desk__posts" aria-labelledby="desk-post-heading">
+        <h2 id="desk-post-heading">Responses by essay</h2>
+        <ul data-desk-posts role="list"></ul>
+        <p data-desk-posts-empty hidden>No essays at the desk yet.</p>
+      </section>
+
+      <div class="response-desk__layout">
+        <section class="response-desk__counts" aria-labelledby="desk-feelings-heading">
+          <h2 id="desk-feelings-heading">How it landed</h2>
+          <dl>
+            {feelings.map(({ id, label }) => (
+              <div data-desk-feeling={id}>
+                <dt>{label}</dt>
+                <dd>
+                  <progress value="0" max="1" aria-hidden="true"></progress>
+                  <span data-desk-feeling-count>0</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section class="response-desk__counts" aria-labelledby="desk-stance-heading">
+          <h2 id="desk-stance-heading">First impressions</h2>
+          <dl>
+            {stances.map(({ id, label }) => (
+              <div data-desk-stance={id}>
+                <dt>{label}</dt>
+                <dd>
+                  <progress value="0" max="1" aria-hidden="true"></progress>
+                  <span data-desk-stance-count>0</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section class="response-desk__trends" aria-labelledby="desk-trends-heading">
+          <h2 id="desk-trends-heading">Last 30 days</h2>
+          <p data-desk-trend-summary></p>
+          <div class="response-desk__chart" data-desk-trend-graph aria-hidden="true"></div>
+          <div class="response-desk__dates" aria-hidden="true">
+            <span data-desk-trend-start></span><span data-desk-trend-end></span>
+          </div>
+          <details>
+            <summary>Show daily counts</summary>
+            <table>
+              <caption class="sr-only">Daily reader responses</caption>
+              <thead><tr><th scope="col">Date</th><th scope="col">Responses</th></tr></thead>
+              <tbody data-desk-trend-table></tbody>
+            </table>
+          </details>
+        </section>
+      </div>
+
+      <section class="response-desk__notes" aria-labelledby="desk-notes-heading">
+        <header>
+          <h2 id="desk-notes-heading" tabindex="-1">Reader notes</h2>
+          <label><input type="checkbox" data-desk-kept /> Kept quotes only</label>
+        </header>
+        <p class="response-desk__notes-empty" data-desk-notes-empty hidden></p>
+        <ul data-desk-notes role="list"></ul>
+      </section>
+
+      <section class="response-desk__feature" aria-labelledby="desk-feature-heading">
+        <h2 id="desk-feature-heading" tabindex="-1">Reader’s note of the month</h2>
+        <p class="response-desk__feature-month" data-feature-month></p>
+        <figure data-feature-current hidden>
+          <blockquote data-feature-quote></blockquote>
+          <figcaption data-feature-citation></figcaption>
+        </figure>
+        <p data-feature-empty>Choose an excerpt from a reader who agreed to share.</p>
+        <button class="text-link response-desk__link" type="button" data-feature-remove hidden>Take down this month’s note</button>
+
+        <form class="response-desk__feature-form" data-feature-form hidden>
+          <p class="response-desk__feature-month" data-feature-source-title></p>
+          <blockquote data-feature-source></blockquote>
+          <p id="desk-feature-help">Choose exact words from the note. The excerpt will appear on the home page as “Anonymous reader”.</p>
+          <label for="desk-feature-excerpt">Excerpt to share</label>
+          <textarea id="desk-feature-excerpt" name="excerpt" rows="4" maxlength="240" aria-describedby="desk-feature-help" required></textarea>
+          <label class="response-desk__check">
+            <input type="checkbox" name="confirmed" required />
+            <span>I’ve checked the excerpt for names and contact details.</span>
+          </label>
+          <div class="response-desk__actions">
+            <button class="button" type="submit" data-feature-publish>Share this excerpt</button>
+            <button class="text-link response-desk__link" type="button" data-feature-cancel>Cancel</button>
+          </div>
+        </form>
+      </section>
+
+      <DeskFieldNotes />
+
+      <section class="response-desk__inbox" aria-labelledby="desk-inbox-heading">
+        <h2 id="desk-inbox-heading">Private inbox</h2>
+        <p class="response-desk__notes-empty" data-inbox-empty hidden>No private replies for these essays yet.</p>
+        <ul data-desk-inbox role="list"></ul>
+      </section>
+
+      <section class="response-desk__inbox" aria-labelledby="desk-backup-heading">
+        <h2 id="desk-backup-heading">Response backups</h2>
+        <p><a class="text-link" href="/api/admin/export/" download>Download a fresh export</a></p>
+        <details data-desk-backups>
+          <summary>Browse weekly copies</summary>
+          <p role="status" data-backup-status></p>
+          <ul data-backup-weeks role="list"></ul>
+          <button type="button" class="text-link response-desk__link" data-backup-more hidden>Show more weeks</button>
+        </details>
+      </section>
+    </div>
+
+    <template data-desk-note-template>
+      <li class="response-desk__note">
+        <p class="response-desk__note-meta">
+          <strong data-note-post></strong><span data-note-feeling></span><time data-note-date></time>
+        </p>
+        <blockquote data-note-quote hidden></blockquote>
+        <div class="response-desk__answer" data-note-followup hidden>
+          <p>Follow-up answer</p>
+          <p data-note-answer></p>
+        </div>
+        <div class="response-desk__actions">
+          <button class="text-link response-desk__link response-desk__keep" type="button" aria-pressed="false" data-desk-pin>Keep quote</button>
+          <button class="text-link response-desk__link" type="button" data-desk-feature hidden>Choose a public excerpt</button>
+        </div>
+      </li>
+    </template>
+
+    <template data-desk-reply-template>
+      <li class="response-desk__note">
+        <p class="response-desk__note-meta"><strong data-reply-post></strong><time data-reply-date></time></p>
+        <p class="response-desk__reply" data-reply-message></p>
+        <a class="text-link response-desk__link" data-reply-email hidden>Reply by email</a>
+      </li>
+    </template>
+  </div>
+</Base>
+
+<script>
+  import '../../scripts/response-desk';
+</script>

@@ -1,0 +1,117 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Offline shelf" description="Read copies you’ve kept on this device." noindex>
+  <section class="wrap interior offline-shelf" data-offline-shelf>
+    <h1>Offline shelf</h1>
+    <p class="lead">These are the copies you’ve kept in this browser.</p>
+    <p data-offline-empty hidden>The shelf is empty. Open an essay and choose <strong>Keep offline</strong> to put it here.</p>
+    <p data-offline-status role="status" aria-atomic="true"></p>
+    <ul data-offline-items role="list" hidden></ul>
+    <template data-offline-row>
+      <li>
+        <a data-offline-link></a>
+        <button type="button" data-offline-remove>Remove copy</button>
+      </li>
+    </template>
+    <noscript><p>The offline shelf uses JavaScript to find the copies on this device.</p></noscript>
+    <a class="text-link" href="/explore/">Explore the essays</a>
+  </section>
+</Base>
+
+<script>
+  import { askOfflineShelf, getOfflineWorker, onOfflineChange, type OfflineEntry } from '../lib/offline-client';
+
+  async function setup() {
+    const shelf = document.querySelector<HTMLElement>('[data-offline-shelf]');
+    const list = shelf?.querySelector<HTMLElement>('[data-offline-items]');
+    const template = shelf?.querySelector<HTMLTemplateElement>('[data-offline-row]');
+    const empty = shelf?.querySelector<HTMLElement>('[data-offline-empty]');
+    const status = shelf?.querySelector<HTMLElement>('[data-offline-status]');
+    if (!shelf || !list || !template || !empty || !status) return;
+
+    const render = (entries: OfflineEntry[]) => {
+      const rows = document.createDocumentFragment();
+      for (const entry of entries) {
+        const row = template.content.cloneNode(true) as DocumentFragment;
+        const link = row.querySelector<HTMLAnchorElement>('[data-offline-link]');
+        const button = row.querySelector<HTMLButtonElement>('[data-offline-remove]');
+        if (!link || !button) continue;
+        link.href = `/posts/${encodeURIComponent(entry.id)}/#reader-take`;
+        link.textContent = entry.title;
+        button.dataset.offlineRemove = entry.id;
+        button.setAttribute('aria-label', `Remove copy of ${entry.title}`);
+        rows.append(row);
+      }
+      list.replaceChildren(rows);
+      empty.hidden = entries.length > 0;
+      list.hidden = entries.length === 0;
+    };
+
+    let removing = false;
+    let firstLoad = true;
+    const refresh = async () => {
+      const result = await askOfflineShelf({ type: 'offline:list' });
+      if (removing) return;
+      if (result.ok) {
+        render(result.entries);
+        if (firstLoad) status.textContent = '';
+      } else {
+        status.textContent = result.message;
+      }
+      firstLoad = false;
+    };
+
+    status.textContent = 'Looking for your copies…';
+    if (!await getOfflineWorker()) {
+      status.textContent = 'This browser can’t keep offline copies here.';
+      return;
+    }
+
+    list.addEventListener('click', async (event) => {
+      const button = event.target instanceof Element
+        ? event.target.closest<HTMLButtonElement>('[data-offline-remove]')
+        : null;
+      if (!button?.dataset.offlineRemove || removing) return;
+      removing = true;
+      button.disabled = true;
+      const result = await askOfflineShelf({ type: 'offline:remove', id: button.dataset.offlineRemove });
+      removing = false;
+      if (result.ok) {
+        render(result.entries);
+        const next = list.querySelector<HTMLButtonElement>('button');
+        if (next) next.focus();
+        else {
+          empty.tabIndex = -1;
+          empty.focus();
+        }
+        status.textContent = 'Offline copy removed.';
+      } else {
+        button.disabled = false;
+        status.textContent = result.message;
+      }
+    });
+    onOfflineChange(() => { if (!removing) void refresh(); });
+    window.addEventListener('pageshow', (event) => { if (event.persisted) void refresh(); });
+    await refresh();
+  }
+
+  void setup();
+</script>
+
+<style>
+  .offline-shelf { max-inline-size: 53rem; }
+  .offline-shelf ul { list-style: none; padding: 0; margin: 1.25rem 0 1rem; border-block-start: 1px solid var(--line); }
+  .offline-shelf :global(li) {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .35rem 1.1rem;
+    border-block-end: 1px solid var(--line); padding-block: .35rem;
+  }
+  .offline-shelf :global(li a) { font: 400 clamp(1.35rem, 3vw, 1.8rem)/1.15 var(--font-display); padding-block: .35rem; }
+  .offline-shelf :global(li button) {
+    min-block-size: 2.75rem; padding: .4rem 0; background: none; border: 0; color: var(--blue);
+    font: 600 .88rem/1.4 var(--font-ui); cursor: pointer; text-decoration: underline; text-underline-offset: .18em;
+  }
+  .offline-shelf [data-offline-status] { color: var(--muted); font-size: .95rem; }
+  .offline-shelf [data-offline-status]:empty { margin: 0; }
+</style>

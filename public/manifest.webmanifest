@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "Second Ink",
+  "short_name": "Second Ink",
+  "description": "Notes on what I read and the ideas that stay with me.",
+  "start_url": "/offline/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f0e4",
+  "theme_color": "#f6f0e4",
+  "icons": [
+    { "src": "/offline-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/offline-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/offline-icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,107 @@
+---
+import { render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { getPosts, postPath } from '../lib/content';
+import '../styles/discovery.css';
+
+const posts = await getPosts();
+const essays = new Map(posts.filter(({ data }) => !data.looseThread).map((post) => [post.id, post]));
+const notes = await Promise.all(posts.filter(({ data }) => data.looseThread).map(async (post) => {
+  const { Content } = await render(post);
+  const followUp = post.data.threadFollowUp ? essays.get(post.data.threadFollowUp) : undefined;
+  return { post, Content, followUp };
+}));
+const date = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
+---
+
+<Base title="Loose Threads" description="Short observations, strange questions, and ideas I’m still working out.">
+  <div class="wrap discovery" data-loose-threads>
+    <header class="discovery__header">
+      <h1>Loose Threads</h1>
+      <p>Short observations, strange questions, and ideas I’m still working out.</p>
+      {notes.length > 1 && <button class="button loose-threads__pick" type="button" data-loose-pick hidden>Pick a random thread</button>}
+    </header>
+
+    {notes.length === 0 && <p class="archive__empty">There’s a clear spot on the shelf for the next stray thought.</p>}
+    {notes.length > 0 && (
+      <div class="loose-threads__shelf">
+        {notes.map(({ post, Content, followUp }) => (
+          <article class="loose-thread" id={post.id} aria-labelledby={post.id + '-title'} data-loose-note>
+            <time datetime={post.data.publishedAt.toISOString()}>{date.format(post.data.publishedAt)}</time>
+            <h2 id={post.id + '-title'} tabindex="-1">{post.data.title}</h2>
+            <div class="loose-thread__prose"><Content /></div>
+            {followUp && <p class="loose-thread__link">
+              <span>This grew into</span>
+              <a href={postPath(followUp)}>{followUp.data.title}</a>
+            </p>}
+          </article>
+        ))}
+      </div>
+    )}
+  </div>
+</Base>
+
+<style>
+  .loose-threads__pick:not([hidden]) { margin-block-start: 1rem; }
+  .loose-threads__shelf { max-inline-size: 40rem; }
+
+  .loose-thread {
+    border-block-end: 1px solid var(--line);
+    padding-block: clamp(1.45rem, 4vw, 2.6rem);
+    scroll-margin-block-start: 6rem;
+  }
+
+  .loose-thread:target { border-block-end-color: var(--blue); }
+
+  time {
+    color: var(--muted);
+    font: .85rem var(--font-ui);
+  }
+
+  h2 {
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 400;
+    line-height: 1.06;
+    margin: .35rem 0 .7rem;
+    text-wrap: balance;
+  }
+
+  .loose-thread__prose {
+    font-family: var(--font-body);
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+  }
+
+  .loose-thread__prose :global(img) { block-size: auto; max-inline-size: 100%; }
+  .loose-thread__prose :global(table) { display: block; max-inline-size: 100%; overflow-x: auto; }
+  .loose-thread__prose :global(:last-child) { margin-block-end: 0; }
+
+  .loose-thread__link {
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    font: .9rem var(--font-ui);
+    gap: .15rem .4rem;
+    margin-block: .8rem 0;
+  }
+</style>
+
+<script>
+  const shelf = document.querySelector<HTMLElement>('[data-loose-threads]');
+  const pick = shelf?.querySelector<HTMLButtonElement>('[data-loose-pick]');
+  const notes = [...shelf?.querySelectorAll<HTMLElement>('[data-loose-note]') ?? []];
+  if (pick && notes.length > 1) {
+    pick.hidden = false;
+    pick.addEventListener('click', () => {
+      const current = notes.findIndex((note) => '#' + encodeURIComponent(note.id) === location.hash);
+      let next = Math.floor(Math.random() * (notes.length - (current === -1 ? 0 : 1)));
+      if (current !== -1 && next >= current) next += 1;
+      const note = notes[next];
+      history.pushState(history.state, '', '#' + encodeURIComponent(note.id));
+      note.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
+      note.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    });
+  }
+</script>

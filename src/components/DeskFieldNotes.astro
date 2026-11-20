@@ -1,0 +1,63 @@
+<section class="response-desk__inbox" aria-labelledby="desk-field-notes-heading">
+  <h2 id="desk-field-notes-heading">Reader field notes</h2>
+  <details data-desk-field-notes>
+    <summary>Open the field-note inbox</summary>
+    <div class="field-notes-desk__filter">
+      <label for="desk-field-note-status">Show notes</label>
+      <select id="desk-field-note-status" data-field-note-filter>
+        <option value="new">New</option>
+        <option value="reviewed">Reviewed</option>
+        <option value="archived">Archived</option>
+        <option value="">All statuses</option>
+      </select>
+    </div>
+    <p class="response-desk__status" role="status" aria-atomic="true" data-field-note-inbox-status></p>
+    <ul data-field-note-inbox-list role="list"></ul>
+    <button type="button" class="text-link response-desk__link" data-field-note-inbox-more hidden>Load older notes</button>
+    <button type="button" class="text-link response-desk__link" data-field-note-inbox-retry hidden>Try opening the inbox again</button>
+
+    <template data-field-note-inbox-row>
+      <li class="response-desk__note">
+        <p class="response-desk__note-meta"><strong data-field-note-essay></strong><time></time></p>
+        <p class="field-notes-desk__prompt" data-field-note-current-prompt></p>
+        <blockquote data-field-note-text></blockquote>
+        <p class="field-notes-desk__permission" data-field-note-permission></p>
+        <form class="response-desk__actions" data-field-note-moderation>
+          <label>
+            <span>Review status</span>
+            <select name="status">
+              <option value="new">New</option>
+              <option value="reviewed">Reviewed</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+          <button class="text-link response-desk__link" type="submit">Save status</button>
+        </form>
+      </li>
+    </template>
+  </details>
+</section>
+
+<style>
+  summary { cursor: pointer; min-block-size: 2.75rem; padding-block: .45rem; }
+  .field-notes-desk__filter, form > label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .45rem;
+    font: .925rem var(--font-ui);
+  }
+  .field-notes-desk__filter { margin-block: .35rem .7rem; }
+  select {
+    max-inline-size: 100%;
+    min-block-size: 2.75rem;
+    border: 1px solid var(--muted);
+    padding: .35rem;
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+  }
+  button { min-block-size: 2.75rem; }
+  button:disabled { opacity: .6; }
+  .field-notes-desk__prompt, .field-notes-desk__permission { color: var(--muted); font-size: .9rem; }
+</style>

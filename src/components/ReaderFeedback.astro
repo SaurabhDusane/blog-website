@@ -1,0 +1,79 @@
+---
+import { feelings } from '../lib/feelings';
+import '../styles/reader-feedback.css';
+
+interface Props {
+  postId: string;
+  question?: string;
+  minutes?: number;
+}
+
+const { postId, question, minutes = 1 } = Astro.props;
+const afterthought = question?.trim() || 'Did this change your mind about anything?';
+const readingWait = Math.min(30, Math.max(12, minutes * 5));
+---
+
+<section id="after-reading" class="reader-feedback" data-reader-feedback data-feedback-post={postId} data-reading-wait={readingWait} aria-labelledby="feedback-heading">
+  <p class="eyebrow">After reading</p>
+  <h2 id="feedback-heading">How did it land?</h2>
+  <div data-feedback-intro>
+    <p>Leave a feeling to see how it landed for other readers.</p>
+    <noscript><p>Turn on JavaScript to leave a feeling, or write me a note below.</p></noscript>
+  </div>
+
+  <form action="/api/feedback/" method="post" data-feedback-form hidden>
+    <fieldset>
+      <legend class="sr-only">Choose a feeling</legend>
+      <div class="reader-feedback__choices">
+        {feelings.map(({ id, label }) => (
+          <label>
+            <input type="radio" name="feeling" value={id} required />
+            <span>{label}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+
+    <details class="reader-feedback__details">
+      <summary>Add a note <span>(optional)</span></summary>
+      <label for="feedback-note">What’s staying with you?</label>
+      <textarea id="feedback-note" name="note" rows="3" maxlength="400"></textarea>
+      <label for="feedback-answer">{afterthought}</label>
+      <textarea id="feedback-answer" name="answer" rows="2" maxlength="400"></textarea>
+      <label class="reader-feedback__consent">
+        <input type="checkbox" name="featureConsent" value="yes" />
+        <span>You can share an excerpt from my note anonymously.</span>
+      </label>
+    </details>
+
+    <input type="text" name="website" autocomplete="off" tabindex="-1" aria-hidden="true" hidden />
+    <div id="feedback-reader-check" data-feedback-check></div>
+    <div class="reader-feedback__send">
+      <button type="submit" class="button">Leave a feeling</button>
+      <span>Anonymous. The owner can read your note and answer.</span>
+    </div>
+  </form>
+
+  <p class="reader-feedback__status" role="status" aria-atomic="true" data-feedback-status></p>
+  <button class="reader-feedback__retry text-link" type="button" data-feedback-retry hidden>Try opening the form again</button>
+  <section class="reader-feedback__map" data-feedback-map aria-labelledby="feedback-map-heading" hidden>
+    <h3 id="feedback-map-heading" tabindex="-1">The feeling map</h3>
+    <p class="reader-feedback__receipt" data-feedback-receipt></p>
+    <p class="reader-feedback__total" data-feedback-total></p>
+    <dl class="reader-feedback__distribution">
+      {feelings.map(({ id, label }) => (
+        <div data-feeling-row={id}>
+          <dt>{label}</dt>
+          <dd>
+            <progress value="0" max="1" aria-hidden="true"></progress>
+            <span data-feeling-count>0</span>
+          </dd>
+        </div>
+      ))}
+    </dl>
+  </section>
+</section>
+
+<script>
+  import '../scripts/reader-feedback';
+</script>

@@ -1,0 +1,99 @@
+---
+interface Props {
+  id?: string;
+  class?: string;
+  standalone?: boolean;
+}
+
+const { id = 'newsletter', class: className, standalone = false } = Astro.props;
+const Heading = standalone ? 'h1' : 'h2';
+---
+
+<section class:list={['newsletter-invite', standalone && 'newsletter-standalone', className]} aria-labelledby={`${id}-heading`}>
+  <div class="newsletter-intro">
+    <p class="eyebrow">Newsletter</p>
+    <Heading id={`${id}-heading`}>A letter from the margins</Heading>
+    <p>Occasional notes on tools, attention, and the work of making things.</p>
+  </div>
+  <form data-newsletter action="/api/newsletter/" method="post">
+    <label for={`${id}-email`}>Email address</label>
+    <div class="newsletter-fields">
+      <input id={`${id}-email`} name="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required />
+      <button type="submit" class="button">Count me in <span aria-hidden="true">↗</span></button>
+    </div>
+    <div hidden>
+      <label for={`${id}-website`}>Website</label>
+      <input id={`${id}-website`} name="website" type="text" tabindex="-1" autocomplete="off" />
+    </div>
+    <p class="newsletter-status" role="status" aria-live="polite"></p>
+  </form>
+</section>
+
+<script>
+  import { track } from '../lib/analytics';
+
+  document.querySelectorAll<HTMLFormElement>('[data-newsletter]').forEach((form) => {
+    const button = form.querySelector('button');
+    const status = form.querySelector<HTMLElement>('.newsletter-status');
+    if (!button || !status) return;
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (button.disabled) return;
+      button.disabled = true;
+      form.setAttribute('aria-busy', 'true');
+      status.textContent = 'Adding your address…';
+      status.removeAttribute('data-error');
+
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: { Accept: 'application/json' },
+          body: new URLSearchParams(Array.from(new FormData(form), ([key, value]) => [key, String(value)])),
+        });
+        const result = await response.json();
+        const subscribed = response.ok && result.ok === true;
+        status.textContent = result.message || 'The signup didn’t go through. Give it another try.';
+        if (subscribed) {
+          form.reset();
+          track('newsletter_signup');
+        } else {
+          status.dataset.error = 'true';
+        }
+      } catch {
+        status.textContent = 'The signup didn’t go through. Give it another try.';
+        status.dataset.error = 'true';
+      } finally {
+        form.removeAttribute('aria-busy');
+        button.disabled = false;
+      }
+    });
+  });
+</script>
+
+<style>
+  .newsletter-invite {
+    display: grid; align-items: center; gap: 1.15rem 3rem;
+    background: var(--wash); border-top: 2px solid var(--blue);
+    padding: clamp(1.25rem, 4vw, 2.6rem);
+  }
+  .newsletter-intro .eyebrow { color: var(--blue); margin-block-end: 0.45rem; }
+  h1, h2 { font-size: clamp(2.5rem, 5vw, 4.45rem); letter-spacing: -0.03em; }
+  .newsletter-intro p:last-child { margin: 0.6rem 0 0; color: var(--muted); }
+  label { display: block; margin-bottom: 0.32rem; font-size: 0.91rem; font-weight: 600; }
+  .newsletter-fields { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+  input[type='email'] {
+    flex: 1 1 10.5rem; min-width: 0; min-height: 2.75rem; width: 100%;
+    border: 1px solid var(--muted); border-radius: 2px; padding-inline: 0.75rem;
+    background: var(--paper); color: var(--ink);
+  }
+  input::placeholder { color: var(--muted); opacity: 1; }
+  .newsletter-status { margin-block: 0.45rem 0; color: var(--blue); font-size: 0.9rem; }
+  .newsletter-status:empty { margin: 0; }
+  .newsletter-status[data-error] { color: var(--red); }
+  .newsletter-standalone { max-width: 53rem; margin-inline: auto; grid-template-columns: 1fr; }
+  .newsletter-standalone h1 { font-size: clamp(3.3rem, 8vw, 6.3rem); }
+  @media (min-width: 49rem) {
+    .newsletter-invite:not(.newsletter-standalone) { grid-template-columns: 1fr minmax(17rem, 0.9fr); }
+  }
+</style>

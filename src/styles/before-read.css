@@ -1,0 +1,67 @@
+.before-read { margin-block: 0 clamp(1.75rem, 5vw, 3.75rem); }
+
+.before-read__inner {
+  padding: clamp(1rem, 4vw, 1.9rem);
+  border-inline-start: 3px solid var(--blue);
+  background: var(--wash);
+}
+
+.before-read .eyebrow { margin-block-end: 0.45rem; }
+
+.before-read h2 {
+  max-inline-size: 27ch;
+  margin-block-end: 0.7rem;
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  letter-spacing: -0.02em;
+  line-height: 1.04;
+}
+
+.before-read__claim {
+  max-inline-size: 58ch;
+  font: 1.05rem/1.55 var(--font-body);
+}
+
+.before-read__choices { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+
+.before-read__choices button {
+  min-block-size: 2.75rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--blue);
+  background: var(--paper);
+  color: var(--blue);
+  font: 600 0.9rem/1.35 var(--font-ui);
+  cursor: pointer;
+}
+
+.before-read__choices button:hover:not(:disabled) { background: var(--blue); color: var(--button-ink); }
+.before-read__choices button:disabled { cursor: wait; }
+
+.before-read__skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-block-size: 2.75rem;
+  padding: 0.4rem 0;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font: 600 0.86rem/1.35 var(--font-ui);
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+
+.before-read h3 { margin-block-end: 0.55rem; font-size: clamp(1.75rem, 4vw, 2.35rem); line-height: 1; }
+.before-read dl { display: grid; gap: 0.45rem; max-inline-size: 28rem; margin: 0 0 0.4rem; }
+.before-read dl > div { display: grid; grid-template-columns: minmax(5.8rem, 35%) 1fr; align-items: center; gap: 0.4rem; }
+.before-read dt { font-size: 0.9rem; }
+.before-read dd { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0.45rem; margin: 0; }
+.before-read dd > span { min-inline-size: 1.25rem; text-align: end; font-variant-numeric: tabular-nums; }
+.before-read progress { appearance: none; inline-size: 100%; block-size: 0.4rem; border: 0; background: var(--paper); color: var(--blue); }
+.before-read progress::-webkit-progress-bar { background: var(--paper); }
+.before-read progress::-webkit-progress-value { background: var(--blue); }
+.before-read progress::-moz-progress-bar { background: var(--blue); }
+.before-read__status { margin: 0.5rem 0 0; color: var(--blue); font-size: 0.9rem; }
+.before-read__status[data-error] { color: var(--red); }
+.before-read__status:empty { margin: 0; }

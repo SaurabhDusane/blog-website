@@ -1,0 +1,49 @@
+---
+import { readSourceLinkStatus } from '../../scripts/source-link-status.mjs';
+
+interface Props {
+  title?: string;
+  author?: string;
+  url?: string;
+  why?: string;
+  archiveUrl?: string;
+}
+
+const { title, author, url, why, archiveUrl } = Astro.props;
+const hasSource = title || author || url;
+const unavailable = url ? readSourceLinkStatus(url) : undefined;
+const savedCopy = archiveUrl || unavailable?.archiveUrl;
+---
+
+<section class="source-card" aria-labelledby="post-source">
+  {hasSource ? (
+    <>
+      <p class="eyebrow">What I read</p>
+      <h2 id="post-source">
+        {url ? <a href={url}>{title || 'Read the original'} <span aria-hidden="true">↗</span></a> : (title || 'The original article')}
+      </h2>
+      {author && <p class="source-card__byline">By {author}</p>}
+    </>
+  ) : <h2 id="post-source">From my desk</h2>}
+  {why ? <p class="source-card__why">{why}</p> : (!hasSource && <p class="source-card__why">A thought I wanted to write down while it was still on my mind.</p>)}
+  {unavailable && <p class="source-card__status">I couldn’t reach the original link.</p>}
+  {savedCopy && <a class="source-card__archive text-link" href={savedCopy}>Read the archived copy</a>}
+</section>
+
+<style>
+  .source-card {
+    background: var(--wash);
+    border-inline-start: 2px solid var(--blue);
+    max-inline-size: 44rem;
+    margin-block-start: clamp(1.25rem, 3.5vw, 2.25rem);
+    padding: clamp(.95rem, 3vw, 1.5rem);
+  }
+  .source-card .eyebrow { margin: 0 0 .45rem; color: var(--blue); }
+  .source-card h2 { font: 400 clamp(1.9rem, 4.5vw, 2.6rem)/1.05 var(--font-display); overflow-wrap: anywhere; }
+  .source-card h2 a { display: inline-block; text-decoration-thickness: 1px; }
+  .source-card h2 span { font: 400 .9rem/1 var(--font-ui); white-space: nowrap; }
+  .source-card__byline { margin: .38rem 0 0; color: var(--muted); font-size: .88rem; }
+  .source-card__why { margin: .62rem 0 0; font: 400 1rem/1.5 var(--font-body); }
+  .source-card__status { margin: .6rem 0 0; color: var(--muted); font-size: .88rem; }
+  .source-card__archive { font-size: .88rem; }
+</style>

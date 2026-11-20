@@ -1,0 +1,48 @@
+---
+import '../styles/before-read.css';
+import { stances } from '../lib/stances';
+
+interface Props {
+  postId: string;
+  question: string;
+  claim?: string;
+}
+const { postId, question, claim } = Astro.props;
+---
+
+<section class="before-read wrap" data-before-read data-stance-post={postId} aria-labelledby="before-read-title" hidden>
+  <div class="before-read__inner">
+    <div data-stance-prompt>
+      <p class="eyebrow">Before my take</p>
+      <h2 id="before-read-title">{question}</h2>
+      {claim && <p class="before-read__claim">{claim}</p>}
+      <form data-stance-form>
+        <div class="before-read__choices" role="group" aria-label="Your first reaction">
+          {stances.map(({ id, label }) => (
+            <button type="submit" name="stance" value={id}>{label}</button>
+          ))}
+        </div>
+        <input type="text" name="website" autocomplete="off" tabindex="-1" aria-hidden="true" hidden />
+        <button class="before-read__skip" type="button" data-stance-skip>Just show me your take <span aria-hidden="true">↓</span></button>
+      </form>
+    </div>
+    <section data-stance-map aria-labelledby="before-read-map" hidden>
+      <h3 id="before-read-map">Where we started</h3>
+      <p data-stance-receipt></p>
+      <dl>
+        {stances.map(({ id, label }) => (
+          <div data-stance-row={id}>
+            <dt>{label}</dt>
+            <dd><progress value="0" max="1" aria-hidden="true"></progress><span data-stance-count>0</span></dd>
+          </div>
+        ))}
+      </dl>
+      <a class="before-read__skip" href="#reader-take">Read my take <span aria-hidden="true">↓</span></a>
+    </section>
+    <p class="before-read__status" role="status" aria-atomic="true" data-stance-status></p>
+  </div>
+</section>
+
+<script>
+  import '../scripts/before-read';
+</script>
