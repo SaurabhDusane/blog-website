@@ -1,7 +1,7 @@
 import { sortEssay } from './essay-classifier.mjs';
 
 const revisionFields = `id, slug, title, description, body, document_key AS documentKey,
-  filename, created_at AS createdAt, topic_ids AS topicIds, mood`;
+  filename, created_at AS createdAt, topic_ids AS topicIds, mood, label_overrides AS labelOverrides`;
 const publicationFields = `p.slug, p.revision, p.published_at AS publishedAt,
   p.updated_at AS updatedAt, r.title, r.description, r.topic_ids AS topicIds, r.mood`;
 
@@ -9,10 +9,11 @@ const changed = (result) => Boolean(result.meta?.changes ?? result.changes);
 
 function classified(row) {
   if (!row) return row;
-  const { topicIds, mood, ...essay } = row;
-  if (topicIds !== null && topicIds !== undefined) return { ...essay, topics: JSON.parse(topicIds), mood };
+  const { topicIds, mood, labelOverrides, ...essay } = row;
+  const overrides = labelOverrides ? JSON.parse(labelOverrides) : {};
+  if (topicIds !== null && topicIds !== undefined) return { ...essay, topics: JSON.parse(topicIds), mood, overrides };
   const sorting = essay.body ? sortEssay(essay) : { topics: [], mood: 'reflective' };
-  return { ...essay, topics: sorting.topics, mood: sorting.mood };
+  return { ...essay, topics: sorting.topics, mood: sorting.mood, overrides };
 }
 
 export function createEditorialStorage(all, run) {
@@ -31,11 +32,12 @@ export function createEditorialStorage(all, run) {
     async saveDeskRevision(slug, base, essay, now) {
       const { title, description, body, documentKey, filename } = essay;
       const sorting = Array.isArray(essay.topics) ? essay : sortEssay(essay);
-      return classified(await one(`INSERT INTO desk_revisions (slug, title, description, body, document_key, filename, created_at, topic_ids, mood)
-        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+      const overrides = essay.overrides ?? {};
+      return classified(await one(`INSERT INTO desk_revisions (slug, title, description, body, document_key, filename, created_at, topic_ids, mood, label_overrides)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         WHERE COALESCE((SELECT MAX(id) FROM desk_revisions WHERE slug = ?), 0) = ?
         RETURNING ${revisionFields}`, slug, title, description, body, documentKey, filename, now,
-      JSON.stringify(sorting.topics), sorting.mood, slug, base));
+      JSON.stringify(overrides.topics ?? sorting.topics), overrides.mood ?? sorting.mood, JSON.stringify(overrides), slug, base));
     },
     async publishDeskRevision(slug, id, now) {
       return changed(await run(`INSERT INTO desk_publications (slug, revision, published_at, updated_at)

@@ -10,7 +10,7 @@ import { convertDocx } from './convert-docx.mjs';
 import { convertPdf } from './import-pdf.mjs';
 import { essayTopics, sortEssay } from './essay-classifier.mjs';
 import {
-  committedDate, documentSources, editDate, metadataField, metadataFields, readPdfMetadata, readSource,
+  committedDate, documentSources, editDate, metadataField, metadataFields, readLabelCorrections, readPdfMetadata, readSource,
   repeatedMetadataFields, validDate,
 } from './document-input.mjs';
 import { createSnapshotStore, digest, findRenames, git, list, pruneOutput, readPublicationState, syncOutput, writeIfChanged } from './document-state.mjs';
@@ -32,6 +32,7 @@ const postId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const permanentFileProblem = /password-protected|damaged or is not a \.docx|does not contain a readable PDF|PDF has no readable text/i;
 const buildTime = Date.now();
 const heading = /^h[1-6]$/;
+const labelIds = new Map(Object.entries(essayTopics).map(([id, name]) => [slugify(name), id]));
 const proseTags = new Set(['p', 'li', 'td', 'th', 'blockquote']);
 const blockTags = new Set([...proseTags, 'ol', 'ul', 'tr']);
 const segmenter = new Intl.Segmenter('en', { granularity: 'word' });
@@ -350,8 +351,9 @@ function editorialEntries(metadata, warnings, sourceIds) {
   };
 }
 
-function renderDocument(source, prepared, converted, authorIds, paths, sourceIds) {
-  const { fragment, metadata, rawTitle } = prepared;
+function renderDocument(source, prepared, converted, authorIds, paths, sourceIds, corrections) {
+  const { fragment, rawTitle } = prepared;
+  const metadata = { ...prepared.metadata, ...corrections };
   const files = new Map(converted.images);
   const cover = takeCover(fragment, files) ?? converted.cover;
   const footnoteCount = source.format === 'docx' ? placeFootnotes(fragment) : 0;
@@ -360,9 +362,10 @@ function renderDocument(source, prepared, converted, authorIds, paths, sourceIds
   if (!passages.length && !cover && !html.includes('<img ')) throw new Error('The document has no readable content.');
   const tags = new Map();
   for (const name of (metadata.tags ?? '').split(',').map((value) => value.trim()).filter(Boolean)) {
-    tags.set(slugify(name).slice(0, 80).replace(/-$/, '') || 'tag-' + digest(name).slice(0, 10), shorten(name, 64));
+    const slug = slugify(name).slice(0, 80).replace(/-$/, '') || 'tag-' + digest(name).slice(0, 10);
+    tags.set(labelIds.get(slug) ?? slug, shorten(name, 64));
   }
-  const providedTopics = tags.size > 0;
+  const providedTopics = tags.size > 0 || Object.hasOwn(corrections, 'tags');
   const title = shorten(rawTitle, 180);
   const originalSource = sourceUrl(metadata['source-url'] ?? metadata.source);
   const archive = sourceUrl(metadata['archive-url']);
@@ -498,7 +501,8 @@ function reportClassification(classification) {
   const { topics, mood } = classification;
   const origin = ({ source, confidence }) => source === 'author' ? 'from your metadata' : `automatic, ${confidence} confidence`;
   return [
-    topics.labels.length ? `  Topics · ${topics.labels.join(', ')} (${origin(topics)})` : '  Topics · Unassigned (insufficient evidence)',
+    topics.labels.length ? `  Topics · ${topics.labels.join(', ')} (${origin(topics)})`
+      : topics.source === 'author' ? '  Topics · None (from your metadata)' : '  Topics · Unassigned (insufficient evidence)',
     `  Mood · ${mood.label.charAt(0).toUpperCase()}${mood.label.slice(1)} (${origin(mood)})`,
   ];
 }
@@ -602,13 +606,15 @@ for (const source of sources) {
       note(source, visibility, visibility === 'draft' ? 'Reserved for private previews.' : 'Waiting for its scheduled publication.');
       continue;
     }
-    const post = renderDocument(source, prepared, converted, authors, paths, sourceIds);
+    const corrections = await readLabelCorrections(root, source.labelsFile);
+    const post = renderDocument(source, prepared, converted, authors, paths, sourceIds, corrections);
     const legacy = legacyPosts.get(source.path);
     const hidden = visibility !== 'published';
     const allocation = existing || legacy || postSlug((hidden ? 'Draft ' : '') + post.data.title, sourceHash);
     const slug = allocation.slug;
     if (allocation.duplicate) post.warnings.push('This title shares a URL name with another post, so a suffix was added.');
-    const fingerprint = digest(sourceHash + '\n' + JSON.stringify(sidecar));
+    const fingerprint = digest(sourceHash + '\n' + JSON.stringify(sidecar)
+      + (Object.keys(corrections).length ? '\n' + JSON.stringify(corrections) : ''));
     const publishedAt = existing?.publishedAt ?? legacy?.publishedAt ?? prepared.filenameDate
       ?? validDate(prepared.metadata.date) ?? committedDate(root, source.path) ?? info.mtime.toISOString().slice(0, 10);
     const updated = Boolean(existing && existing.fingerprint !== fingerprint);
@@ -636,7 +642,8 @@ for (const source of sources) {
       : existing && existing.path !== source.path ? 'The renamed file kept its original URL.'
         : existing ? 'The published version is current.' : 'Ready at /posts/' + slug + '/.';
     note(source, status, reason, { slug, conversion: cached ? 'cached' : 'converted', warnings: post.warnings,
-      classification: hidden ? undefined : post.classification });
+      classification: hidden ? undefined : post.classification, labelsFile: hidden ? undefined : source.labelsPath,
+      labelsFileExists: hidden ? undefined : Boolean(source.labelsFile) });
   } catch (error) {
     let preserved = false;
     if (existing?.snapshot && visibility === 'published' && !reservedPosts.has(existing.slug)) {
@@ -672,9 +679,10 @@ if (!preview) {
 }
 const reportText = [
   'Document conversion report',
-  ...records.flatMap(({ path, status, reason, classification, warnings }) => [
+  ...records.flatMap(({ path, status, reason, classification, labelsFile, warnings }) => [
     status.charAt(0).toUpperCase() + status.slice(1) + ' — ' + path + ' · ' + reason,
     ...reportClassification(classification),
+    ...(labelsFile ? [`  Label corrections · ${labelsFile}`] : []),
     ...warnings.map((warning) => '  Check: ' + warning),
   ]),
   '',

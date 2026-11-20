@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import ReaderVoiceNote from '../components/ReaderVoiceNote.astro';
+import RevisitEssay from '../components/RevisitEssay.astro';
 import '../styles/reader.css';
 ---
 
@@ -16,6 +17,7 @@ import '../styles/reader.css';
       <p class="reader-deck">DESK-DESCRIPTION</p>
       <div class="reader-meta"><time datetime="DESK-PUBLISHED">DESK-DATE</time><span>DESK-MINUTES min read</span><span class="reader-mood">DESK-MOOD</span></div>
       <ReaderVoiceNote postId="DESK-SLUG" />
+      <RevisitEssay postId="DESK-SLUG" title="DESK-TITLE" minutes="DESK-MINUTES" />
     </header>
     <article class="reader-article wrap" aria-labelledby="reader-title">
       <Fragment set:html={'DESK-DOCUMENT'} />

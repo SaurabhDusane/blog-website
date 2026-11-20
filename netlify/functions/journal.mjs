@@ -2,6 +2,7 @@ import rawCatalog from '../../dist/posts/catalog.json' with { type: 'json' };
 import { handleApi, isApiPath, parsePostCatalog } from '../../scripts/api.mjs';
 import { createD1Storage } from '../../scripts/d1-storage.mjs';
 import { createRestDatabase } from '../../scripts/netlify-d1.mjs';
+import { relayEarlyReader } from '../../scripts/early-reader-relay.mjs';
 
 const catalog = parsePostCatalog(rawCatalog);
 
@@ -14,6 +15,7 @@ export default function journal(request, context) {
       headers: { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow, noarchive' },
     });
   }
+  if (new URL(request.url).pathname.replace(/\/$/, '') === '/api/early-reader') return relayEarlyReader(request, process.env);
   if (!isApiPath(new URL(request.url).pathname)) return new Response('Page missing.', { status: 404 });
 
   const accountId = process.env.SECOND_INK_D1_ACCOUNT_ID;

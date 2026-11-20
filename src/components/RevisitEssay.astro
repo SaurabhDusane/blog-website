@@ -1,0 +1,81 @@
+---
+interface Props { postId: string; title: string; minutes: number | string }
+const { postId, title, minutes } = Astro.props;
+---
+
+<section class="essay-revisit" id="revisit-note" data-revisit={postId} data-title={title} data-minutes={minutes} hidden>
+  <div class="essay-revisit__note" data-revisit-note hidden>
+    <p class="eyebrow">Your note from last time</p>
+    <p data-revisit-text></p>
+  </div>
+  <details>
+    <summary data-revisit-label>Set aside with a note</summary>
+    <form>
+      <label for="revisit-text">What do you want to remember?</label>
+      <textarea id="revisit-text" rows="3" maxlength="800" required></textarea>
+      <p class="essay-revisit__hint">Your note stays in this browser.</p>
+      <div class="essay-revisit__actions">
+        <button class="button" type="submit">Save for later</button>
+        <button class="text-link" type="button" data-revisit-remove hidden>Remove note</button>
+      </div>
+    </form>
+  </details>
+  <p class="essay-revisit__hint" role="status" data-revisit-status></p>
+</section>
+
+<script>
+  import { libraryKey, libraryChangeEvent, readLibrary, writeRevisit } from '../lib/reader-state';
+  const root = document.querySelector<HTMLElement>('[data-revisit]');
+  if (root?.dataset.revisit) {
+    const id = root.dataset.revisit;
+    const box = root.querySelector<HTMLDetailsElement>('details')!;
+    const field = root.querySelector<HTMLTextAreaElement>('textarea')!;
+    const label = root.querySelector<HTMLElement>('[data-revisit-label]')!;
+    const note = root.querySelector<HTMLElement>('[data-revisit-note]')!;
+    const text = root.querySelector<HTMLElement>('[data-revisit-text]')!;
+    const remove = root.querySelector<HTMLButtonElement>('[data-revisit-remove]')!;
+    const status = root.querySelector<HTMLElement>('[data-revisit-status]')!;
+    function update() {
+      const notes = readLibrary().revisits;
+      const saved = Object.hasOwn(notes, id) ? notes[id] : undefined;
+      note.hidden = remove.hidden = !saved;
+      text.textContent = saved?.text ?? '';
+      label.textContent = saved ? 'Edit your note' : 'Set aside with a note';
+      if (document.activeElement !== field) field.value = saved?.text ?? '';
+    }
+    box.querySelector('form')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const message = field.value.trim();
+      if (!message) { status.textContent = 'Write a short note to your future self.'; field.focus(); return; }
+      const durable = writeRevisit(id, { text: message, title: root.dataset.title ?? '', minutes: Number(root.dataset.minutes) });
+      status.textContent = durable ? 'Saved on this device.' : 'Kept for this visit. Browser storage is unavailable.';
+      box.open = false;
+      label.focus();
+    });
+    remove.addEventListener('click', () => {
+      writeRevisit(id);
+      field.value = '';
+      status.textContent = 'Note removed. The essay is still in Saved.';
+      box.open = false;
+      label.focus();
+    });
+    window.addEventListener(libraryChangeEvent, update);
+    window.addEventListener('storage', (event) => { if (event.key === libraryKey || !event.key) update(); });
+    update();
+    root.hidden = false;
+  }
+</script>
+
+<style>
+  .essay-revisit { max-inline-size: 36rem; margin-block: .65rem .35rem; font-family: var(--font-ui); }
+  .essay-revisit__note { border-inline-start: 2px solid var(--blue); padding: .45rem .75rem; background: var(--wash); }
+  .essay-revisit__note p { margin: .2rem 0; }
+  .essay-revisit__note [data-revisit-text] { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .essay-revisit summary { min-height: 2.75rem; align-content: center; color: var(--blue); cursor: pointer; font-weight: 600; width: fit-content; }
+  .essay-revisit label { display: block; font-weight: 600; margin-block: .3rem; }
+  .essay-revisit textarea { inline-size: 100%; background: var(--paper); color: var(--ink); border: 1px solid var(--muted); font: inherit; padding: .55rem; resize: vertical; }
+  .essay-revisit__actions { display: flex; gap: .5rem 1rem; flex-wrap: wrap; }
+  .essay-revisit__actions .text-link { background: none; border: 0; padding: 0; cursor: pointer; }
+  .essay-revisit__hint { color: var(--muted); font-size: .9rem; margin: .35rem 0; }
+  .essay-revisit__hint:empty { display: none; }
+</style>

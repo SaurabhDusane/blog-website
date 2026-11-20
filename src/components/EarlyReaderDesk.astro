@@ -1,0 +1,24 @@
+<details class="publishing-desk__supplement" data-early-desk hidden>
+  <summary>Invite an early reader</summary>
+  <p class="publishing-desk__hint" data-early-version></p>
+  <p class="publishing-desk__hint" data-early-access></p>
+  <form data-early-invite>
+    <label for="early-label">Who is it for? <span class="publishing-desk__hint">(optional)</span></label>
+    <input id="early-label" name="label" maxlength="100" />
+    <label for="early-days">Link expires after</label>
+    <select id="early-days" name="days">
+      <option value="1">1 day</option><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option>
+    </select>
+    <div class="publishing-desk__actions"><button type="submit" class="button">Create review link</button></div>
+  </form>
+  <div data-early-link hidden>
+    <p class="publishing-desk__hint">Copy this link before leaving this version.</p>
+    <label for="early-share-url" class="sr-only">Review link</label>
+    <div class="publishing-desk__actions">
+      <input id="early-share-url" type="url" readonly />
+      <button type="button" class="button" data-early-copy>Copy link</button>
+    </div>
+  </div>
+  <ul data-early-list role="list"></ul>
+  <p class="publishing-desk__status" data-early-status role="status"></p>
+</details>

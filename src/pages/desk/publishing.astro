@@ -1,5 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
+import EarlyReaderDesk from '../../components/EarlyReaderDesk.astro';
+import { essayTopics } from '../../../scripts/essay-classifier.mjs';
 import '../../styles/publishing-desk.css';
 import '../../styles/reader.css';
 ---
@@ -56,6 +58,22 @@ import '../../styles/reader.css';
             <p class="publishing-desk__hint" id="publishing-format-hint">Markdown works here. Write links as [the words](/about/).</p>
             <p class="publishing-desk__hint" data-desk-filename></p>
             <p class="publishing-desk__hint" data-desk-sorting hidden></p>
+            <details class="publishing-desk__supplement" data-desk-labels>
+              <summary>Topics and mood</summary>
+              <p class="publishing-desk__hint">Set a label yourself or leave it to the sorter. Corrections are saved with the draft.</p>
+              <label class="publishing-desk__check"><input type="checkbox" data-desk-use-topics /> Choose the topics myself</label>
+              <fieldset class="publishing-desk__topics" data-desk-topic-options hidden>
+                <legend>Topics</legend>
+                {Object.entries(essayTopics).map(([id, name]) => <label class="publishing-desk__check">
+                  <input type="checkbox" name="chosenTopic" value={id} />{name}
+                </label>)}
+              </fieldset>
+              <label class="publishing-desk__mood" for="publishing-mood">Mood</label>
+              <select id="publishing-mood" data-desk-mood>
+                <option value="">Automatic</option><option value="reflective">Reflective</option>
+                <option value="practical">Practical</option><option value="curious">Curious</option>
+              </select>
+            </details>
             <div class="publishing-desk__actions">
               <button type="submit" class="button">Save draft</button>
               <button type="button" class="button" data-desk-publish disabled>Publish saved draft</button>
@@ -99,6 +117,7 @@ import '../../styles/reader.css';
             <button type="button" class="text-link" data-desk-withdraw hidden>Take the live essay down</button>
           </div>
         </details>
+        <EarlyReaderDesk />
       </section>
       <section class="publishing-desk__section" aria-labelledby="publishing-voice">
         <h2 id="publishing-voice">Voice notes</h2>

@@ -1,6 +1,7 @@
 import { defineCollection, reference, z } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { sources, sourceAnnotations } from './lib/source-schema';
+import { questions } from './lib/question-schema';
 
 const locale = z.string().default('en');
 const httpUrl = z.string().url().refine((url) => /^https?:\/\//i.test(url));
@@ -126,4 +127,4 @@ const editions = defineCollection({
   }),
 });
 
-export const collections = { posts, topics, authors, series, pages, editions, sources };
+export const collections = { posts, topics, authors, series, pages, editions, sources, questions };

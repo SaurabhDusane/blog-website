@@ -16,6 +16,7 @@ import ReaderFieldNotes from "../../components/ReaderFieldNotes.astro";
 import ReaderListen from "../../components/ReaderListen.astro";
 import ReaderRevisions from "../../components/ReaderRevisions.astro";
 import ReaderVoiceNote from "../../components/ReaderVoiceNote.astro";
+import RevisitEssay from "../../components/RevisitEssay.astro";
 import RevisitImpression from "../../components/RevisitImpression.astro";
 import SourceCard from "../../components/SourceCard.astro";
 import { draftsEnabled, getAuthors, getDraftPosts, getPosts, getRelatedPosts, getTopics, postPath, postRedirects } from "../../lib/content";
@@ -137,10 +138,10 @@ const email = [import.meta.env.PUBLIC_AUTHOR_EMAIL, author?.data.email]
                   <div class="reader-settings__group" role="group" aria-label="Theme">
                     <span class="reader-settings__label">Page color</span>
                     <div class="reader-settings__options">
-                      <button type="button" data-reader-theme="light" aria-pressed="false">Light</button>
+                      <button type="button" data-reader-theme="light" aria-pressed="true">Light</button>
                       <button type="button" data-reader-theme="dark" aria-pressed="false">Dark</button>
                       <button type="button" data-reader-theme="sepia" aria-pressed="false">Sepia</button>
-                      <button type="button" data-reader-theme="auto" aria-pressed="true">Auto</button>
+                      <button type="button" data-reader-theme="auto" aria-pressed="false">Auto</button>
                     </div>
                   </div>
                 </div>
@@ -160,6 +161,7 @@ const email = [import.meta.env.PUBLIC_AUTHOR_EMAIL, author?.data.email]
         <div class="reader-extras wrap">
           <ReaderListen />
           {!isPreview && <ReaderVoiceNote postId={post.id} />}
+          {!isPreview && <RevisitEssay postId={post.id} title={title} minutes={minutes} />}
           {!isPreview && <OfflineEssay postId={post.id} title={title} />}
         </div>
 

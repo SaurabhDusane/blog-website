@@ -137,6 +137,7 @@ p { margin-block: 0 1em; }
 .registration::after { width: 1px; height: 1.28rem; left: calc(50% - 0.5px); top: -0.18rem; }
 .site-header nav, .site-footer nav { display: flex; align-items: center; flex-wrap: wrap; gap: 0.15rem clamp(0.8rem, 2.75vw, 2.2rem); }
 .site-header nav a, .site-footer nav a {
+  display: inline-flex; align-items: center; min-height: 2.75rem;
   padding-block: 0.65rem; color: var(--ink);
   text-decoration-color: transparent; font-size: 0.95rem; font-weight: 550;
 }
@@ -160,6 +161,7 @@ p { margin-block: 0 1em; }
 
 @media (max-width: 35rem) {
   .site-header { align-items: flex-start; flex-direction: column; padding-block: 1rem 0.15rem; }
+  .site-header nav { gap: 0 .9rem; }
   .wordmark { font-size: 2.5rem; }
 }
 

@@ -64,6 +64,20 @@
       "when": 1794985206000,
       "tag": "0008_essay_classification",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1794985207000,
+      "tag": "0009_desk_label_corrections",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1794985208000,
+      "tag": "0010_early_readers",
+      "breakpoints": true
     }
   ]
 }

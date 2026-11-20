@@ -1,0 +1,28 @@
+---
+import Base from '../../layouts/Base.astro';
+import FollowQuestion from '../../components/FollowQuestion.astro';
+import { questionEntries, questionPath } from '../../lib/questions';
+import '../../styles/discovery.css';
+const questions = await questionEntries();
+---
+
+<Base title="Questions" description="Questions I keep coming back to across essays.">
+  <div class="wrap discovery">
+    <header class="discovery__header"><h1>Questions</h1><p>Some questions need more than one essay. Follow one to see where I take it next.</p></header>
+    <ul class="question-index" role="list">
+      {questions.map(({ question, entries }) => <li data-question-entry>
+        <h2><a href={questionPath(question)}>{question.data.title}</a></h2>
+        <p>{question.data.description}</p>
+        <FollowQuestion id={question.id} essays={entries.map(({ post }) => post.id)} />
+      </li>)}
+    </ul>
+  </div>
+</Base>
+
+<style>
+  .question-index { display: grid; margin: 2rem 0 0; padding: 0; list-style: none; max-inline-size: 48rem; }
+  .question-index li { padding: 1rem 0; border-block-end: 1px solid var(--line); }
+  .question-index li[data-following] { order: -1; }
+  .question-index h2 { margin: 0; font-size: clamp(1.8rem, 5vw, 2.7rem); }
+  .question-index p { margin: .4rem 0; color: var(--muted); }
+</style>

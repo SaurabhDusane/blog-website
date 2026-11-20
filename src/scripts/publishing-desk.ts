@@ -1,7 +1,9 @@
 import { diffLines } from 'diff';
 import { micromark } from 'micromark';
+import { setupEarlyReaderDesk } from './early-reader-desk';
 
-type Draft = { slug: string; title: string; description: string; body: string; documentKey: string | null; filename: string | null };
+type Overrides = { topics?: string[]; mood?: string };
+type Draft = { slug: string; title: string; description: string; body: string; documentKey: string | null; filename: string | null; overrides: Overrides };
 type Revision = Draft & { id: number; createdAt: string; topics: string[]; mood: string };
 type HistoryEntry = Pick<Revision, 'id' | 'title' | 'createdAt'>;
 type Entry = { slug: string; title: string; id: number; liveRevision: number | null };
@@ -11,7 +13,7 @@ type VoiceNote = { src: string; audioKey: string; transcript: string };
 const endpoint = '/api/admin/publishing/';
 const session = '/api/admin/session/';
 const formatDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-const blank = (): Draft => ({ slug: '', title: '', description: '', body: '', documentKey: null, filename: null });
+const blank = (): Draft => ({ slug: '', title: '', description: '', body: '', documentKey: null, filename: null, overrides: {} });
 
 class DeskError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -57,6 +59,7 @@ async function upload(file: File, kind: 'document' | 'audio') {
 }
 
 function init(root: HTMLElement) {
+  const earlyReader = setupEarlyReaderDesk(root);
   const get = <T extends Element>(name: string) => root.querySelector<T>(`[data-desk-${name}]`)!;
   const status = get<HTMLElement>('status');
   const content = get<HTMLElement>('content');
@@ -68,6 +71,10 @@ function init(root: HTMLElement) {
   const slug = editor.elements.namedItem('slug') as HTMLInputElement;
   const description = editor.elements.namedItem('description') as HTMLTextAreaElement;
   const body = editor.elements.namedItem('body') as HTMLTextAreaElement;
+  const chooseTopics = get<HTMLInputElement>('use-topics');
+  const topicOptions = get<HTMLFieldSetElement>('topic-options');
+  const topics = [...topicOptions.querySelectorAll<HTMLInputElement>('input')];
+  const moodChoice = get<HTMLSelectElement>('mood');
   const documentField = get<HTMLInputElement>('document');
   const importButton = get<HTMLButtonElement>('import');
   const publish = get<HTMLButtonElement>('publish');
@@ -106,10 +113,15 @@ function init(root: HTMLElement) {
   const draft = (): Draft => ({
     title: title.value, slug: slug.value, description: description.value, body: body.value,
     documentKey: snapshot.documentKey, filename: snapshot.filename,
+    overrides: {
+      ...(chooseTopics.checked ? { topics: topics.filter((input) => input.checked).map((input) => input.value) } : {}),
+      ...(moodChoice.value ? { mood: moodChoice.value } : {}),
+    },
   });
   const dirty = () => Boolean(pendingDocument || JSON.stringify(draft()) !== JSON.stringify({
     title: snapshot.title, slug: snapshot.slug, description: snapshot.description, body: snapshot.body,
     documentKey: snapshot.documentKey, filename: snapshot.filename,
+    overrides: snapshot.overrides,
   }));
   const historical = () => Boolean(detail && detail.revision.id !== detail.latest);
 
@@ -121,6 +133,10 @@ function init(root: HTMLElement) {
     restore.disabled = withdraw.disabled = older.disabled = busy;
     for (const field of [title, description, body]) field.readOnly = busy || historical();
     slug.readOnly = busy || Boolean(detail);
+    chooseTopics.disabled = moodChoice.disabled = busy || historical();
+    topicOptions.hidden = !chooseTopics.checked;
+    topicOptions.disabled = !chooseTopics.checked || chooseTopics.disabled;
+    earlyReader.edited(busy || dirty());
   }
 
   function renderPreview() {
@@ -175,6 +191,7 @@ function init(root: HTMLElement) {
 
   function loadDraft(value?: Details) {
     detail = value;
+    earlyReader.show(value?.revision.id);
     snapshot = value?.revision ?? blank();
     pendingDocument = null;
     documentField.value = '';
@@ -182,6 +199,10 @@ function init(root: HTMLElement) {
     slug.value = snapshot.slug;
     description.value = snapshot.description;
     body.value = snapshot.body;
+    chooseTopics.checked = snapshot.overrides.topics !== undefined;
+    const chosenTopics = snapshot.overrides.topics ?? value?.revision.topics ?? [];
+    for (const topic of topics) topic.checked = chosenTopics.includes(topic.value);
+    moodChoice.value = snapshot.overrides.mood ?? '';
     entries.value = snapshot.slug;
     history.hidden = !value;
     restore.hidden = !historical();
@@ -199,7 +220,7 @@ function init(root: HTMLElement) {
     if (value) {
       const { topics, mood } = value.revision;
       const names = topics.map((id) => topicLabels[id] ?? id);
-      sorting.textContent = names.length ? `Sorted automatically · ${[...names, mood].join(' · ')}` : `Mood · ${mood}`;
+      sorting.textContent = `${names.join(', ') || 'No topics'} · ${mood}${Object.keys(snapshot.overrides).length ? ' · Includes your choices' : ' · Automatic'}`;
     }
     linkList.replaceChildren();
     report(linkStatus, '');

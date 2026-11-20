@@ -1,0 +1,22 @@
+---
+interface Props { id: string; essays: string[] }
+const { id, essays } = Astro.props;
+---
+
+<div class="question-follow" data-question-follow={id} data-question-essays={JSON.stringify(essays)}>
+  <button class="text-link" type="button" data-question-toggle aria-pressed="false" hidden>Follow here</button>
+  <a class="text-link" href={`/questions/${id}/rss.xml`}>RSS feed</a>
+  <span data-question-status role="status"></span>
+</div>
+
+<script>
+  import '../scripts/follow-questions';
+</script>
+
+<style>
+  .question-follow { display: flex; flex-wrap: wrap; gap: 0 1rem; align-items: center; font: .9rem/1.4 var(--font-ui); }
+  .question-follow .text-link { min-block-size: 2.75rem; align-content: center; }
+  .question-follow button { padding: 0; border: 0; background: none; cursor: pointer; }
+  .question-follow button[aria-pressed='true'] { color: var(--ink); font-weight: 600; }
+  .question-follow span { color: var(--muted); }
+</style>

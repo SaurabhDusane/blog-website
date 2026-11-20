@@ -29,7 +29,7 @@ const redirects = {
 
 function isIndexable(url) {
   const { pathname } = new URL(url);
-  if (pathname.startsWith('/desk/') || ['/saved/', '/offline/', '/under-the-blotter/', '/document-template/'].includes(pathname)) return false;
+  if (pathname.startsWith('/desk/') || ['/saved/', '/offline/', '/under-the-blotter/', '/document-template/', '/early-reader/'].includes(pathname)) return false;
   return !redirectedPaths.has(pathname);
 }
 

@@ -35,8 +35,8 @@
   appearance.dataset.defaultTheme = isNight ? 'dark' : 'light';
   let savedTheme;
   try { savedTheme = localStorage.getItem('second-ink:theme'); } catch {}
-  appearance.dataset.theme = ['light', 'sepia', 'dark'].includes(savedTheme)
+  appearance.dataset.theme = savedTheme === 'auto' ? appearance.dataset.defaultTheme : ['light', 'sepia', 'dark'].includes(savedTheme)
     ? savedTheme
-    : appearance.dataset.defaultTheme;
+    : 'light';
 })();
 </script>

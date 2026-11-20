@@ -40,6 +40,10 @@ function knownTheme(value: string | null | undefined): Theme | undefined {
   return themes.find((theme) => theme === value);
 }
 
+function themePreference(value: string | null | undefined): ThemePreference {
+  return value === 'auto' ? value : knownTheme(value) ?? 'light';
+}
+
 function getReadingLine() {
   return Math.min(window.innerHeight * 0.33, 250);
 }
@@ -471,7 +475,7 @@ function setupReader(reader: HTMLElement, prose: HTMLElement, postId: string, ti
     const size = button.dataset.readerSize as TextSize;
     if (theme) {
       applyTheme(theme);
-      writePreference(themeKey, theme === "auto" ? null : theme);
+      writePreference(themeKey, theme);
     } else if (textSizes.includes(size)) {
       updateLayout(() => applySize(size));
       writePreference(sizeKey, size);
@@ -531,12 +535,12 @@ function setupReader(reader: HTMLElement, prose: HTMLElement, postId: string, ti
   window.addEventListener(libraryChangeEvent, syncSave, { signal });
   window.addEventListener("storage", (event) => {
     if (event.key === libraryKey) syncSave();
-    if (event.key === themeKey || event.key === null) applyTheme(knownTheme(readPreference(themeKey)) ?? "auto");
+    if (event.key === themeKey || event.key === null) applyTheme(themePreference(readPreference(themeKey)));
   }, { signal });
 
   const preferenceSize = readPreference(sizeKey) as TextSize;
   applySize(textSizes.includes(preferenceSize) ? preferenceSize : "regular");
-  applyTheme(knownTheme(readPreference(themeKey)) ?? "auto");
+  applyTheme(themePreference(readPreference(themeKey)));
   applyMargins(readPreference(marginsKey) === "open");
   if (marginButton) marginButton.hidden = notes.length === 0;
   syncSave();

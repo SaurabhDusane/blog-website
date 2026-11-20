@@ -254,9 +254,24 @@ export async function publishReport(data, request = fetch) {
     return;
   }
   await appendFile(summary, `### Document conversion\n\n<pre>${escapeHtml(text.slice(0, maxReport))}</pre>\n\n`);
-  const { GH_TOKEN: token, GITHUB_SHA: sha, GITHUB_REPOSITORY: repo } = process.env;
-  if (!token || !/^[a-f0-9]{40}$/.test(sha ?? '') || !/^[\w.-]+\/[\w.-]+$/.test(repo ?? '')) return;
-  const report = readJson(await readBoundedFile(join(data, 'document-import-report.json'), maxManifest));
+  const { GH_TOKEN: token, GITHUB_SHA: sha, GITHUB_REPOSITORY: repo, GITHUB_REF_NAME: ref } = process.env;
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo ?? '')) return;
+  let report;
+  try { report = readJson(await readBoundedFile(join(data, 'document-import-report.json'), maxManifest)); }
+  catch (error) { if (error.code === 'ENOENT') return; throw error; }
+  if (/^[\w.-]+(?:\/[\w.-]+)*$/.test(ref ?? '') && !ref.includes('..')) {
+    const links = report.records.filter(({ labelsFile }) => typeof labelsFile === 'string'
+      && /^posts\/(?:(?:essays|threads)\/)?[^/\\]+\.labels\.yml$/.test(labelsFile)).slice(0, 25).map((record) => {
+      const segments = record.labelsFile.split('/');
+      const name = segments.at(-1);
+      const path = (record.labelsFileExists ? segments : segments.slice(0, -1)).map(encodeURIComponent).join('/');
+      const root = `https://github.com/${repo}`;
+      const href = `${root}/${record.labelsFileExists ? 'edit' : 'tree'}/${encodeURIComponent(ref)}/${path}`;
+      return `<li><a href="${href}">${record.labelsFileExists ? 'Edit' : 'Add'} ${escapeHtml(name)}</a></li>`;
+    });
+    if (links.length) await appendFile(summary, `### Correct a label\n\n<ul>${links.join('')}</ul>\n\n`);
+  }
+  if (!token || !/^[a-f0-9]{40}$/.test(sha ?? '')) return;
   const failures = report.records.filter((entry) => entry.status === 'problem');
   if (!failures.length) return;
   const marker = '<!-- second-ink-document-conversion -->';

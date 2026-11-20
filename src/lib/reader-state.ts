@@ -9,6 +9,13 @@ interface ReadingEntry {
 interface Library {
   saved: string[];
   history: Record<string, ReadingEntry>;
+  revisits: Record<string, RevisitNote>;
+}
+
+export interface RevisitNote {
+  text: string;
+  title: string;
+  minutes: number;
 }
 
 export interface SavedQuote {
@@ -23,7 +30,9 @@ export const libraryChangeEvent = 'second-ink:library-change';
 export const savedQuotesKey = 'second-ink:quotes';
 export const savedQuotesChangeEvent = 'second-ink:quotes-change';
 
-let memory: Library = { saved: [], history: {} };
+const emptyLibrary = (): Library => ({ saved: [], history: {}, revisits: {} });
+const essayId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+let memory: Library = emptyLibrary();
 let memoryIsNewer = false;
 
 function normalize(raw: Partial<Library>): Library {
@@ -40,16 +49,21 @@ function normalize(raw: Partial<Library>): Library {
         { ...entry, completed: (entry.completed === true || entry.progress === 100) || undefined },
       ]),
   );
-  return { saved, history };
+  const revisits = Object.fromEntries(Object.entries(raw.revisits ?? {}).filter(([id, note]) => (
+    essayId.test(id) && saved.includes(id) && typeof note?.text === 'string' && !!note.text.trim() && note.text.length <= 800
+    && typeof note.title === 'string' && !!note.title.trim() && note.title.length <= 250
+    && Number.isSafeInteger(note.minutes) && note.minutes > 0
+  )));
+  return { saved, history, revisits };
 }
 
 export function readLibrary(): Library {
-  if (typeof window === 'undefined') return { saved: [], history: {} };
+  if (typeof window === 'undefined') return emptyLibrary();
   if (memoryIsNewer) return memory;
 
   try {
     const raw = window.localStorage.getItem(libraryKey);
-    memory = raw ? normalize(JSON.parse(raw)) : { saved: [], history: {} };
+    memory = raw ? normalize(JSON.parse(raw)) : emptyLibrary();
     return memory;
   } catch {
     return memory;
@@ -66,6 +80,7 @@ function writeLibrary(library: Library) {
     memoryIsNewer = true;
   }
   window.dispatchEvent(new Event(libraryChangeEvent));
+  return !memoryIsNewer;
 }
 
 export function savePost(postId: string, saved?: boolean): boolean {
@@ -79,8 +94,24 @@ export function savePost(postId: string, saved?: boolean): boolean {
   library.saved = nextSaved
     ? [postId, ...library.saved]
     : library.saved.filter((id) => id !== postId);
+  if (!nextSaved) delete library.revisits[postId];
   writeLibrary(library);
   return nextSaved;
+}
+
+export function writeRevisit(postId: string, note?: RevisitNote): boolean {
+  if (typeof window === 'undefined' || !essayId.test(postId)) return false;
+  const library = readLibrary();
+  if (note) {
+    const text = note.text.trim().slice(0, 800);
+    const title = note.title.trim().slice(0, 250);
+    if (!text || !title || !Number.isSafeInteger(note.minutes) || note.minutes <= 0) return false;
+    library.revisits[postId] = { text, title, minutes: note.minutes };
+    if (!library.saved.includes(postId)) library.saved.unshift(postId);
+  } else {
+    delete library.revisits[postId];
+  }
+  return writeLibrary(library);
 }
 
 export function recordReading(postId: string, progress: number, anchor?: string): void {

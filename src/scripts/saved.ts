@@ -85,8 +85,39 @@ function initSaved() {
   const render = () => {
     const library = readLibrary();
     const bookmarkItems = library.saved.flatMap((id) => {
-      const row = bookmarkRows.get(id);
-      return row ? [row.content.cloneNode(true)] : [];
+      const template = bookmarkRows.get(id);
+      const note = Object.hasOwn(library.revisits, id) ? library.revisits[id] : undefined;
+      if (!template && !note) return [];
+      const row = template ? template.content.cloneNode(true) as DocumentFragment : document.createElement('li');
+      let body = row.querySelector<HTMLElement>('.essay-row__body');
+      if (!template && note && row instanceof HTMLElement) {
+        row.className = 'saved-page__dynamic';
+        body = document.createElement('div');
+        const link = document.createElement('a');
+        link.className = 'text-link';
+        link.textContent = note.title;
+        link.href = `/posts/${encodeURIComponent(id)}/`;
+        body.append(link);
+        const button = document.createElement('button');
+        button.className = 'text-link saved-page__dynamic-remove';
+        button.type = 'button';
+        button.textContent = 'Remove';
+        button.dataset.removeBookmark = id;
+        button.dataset.postTitle = note.title;
+        button.setAttribute('aria-label', `Remove ${note.title} from Saved`);
+        row.append(body, button);
+      }
+      if (body && note) {
+        const past = document.createElement('p');
+        past.className = 'saved-page__revisit';
+        const label = document.createElement('strong');
+        label.textContent = 'Your note';
+        const reason = document.createElement('span');
+        reason.textContent = note.text;
+        past.append(label, reason);
+        body.append(past);
+      }
+      return [row];
     });
     bookmarks.replaceChildren(...bookmarkItems);
     updateCount('bookmark', bookmarkItems.length);

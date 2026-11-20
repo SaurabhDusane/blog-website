@@ -98,6 +98,14 @@ const posts = await getPosts();
   }
 
   .saved-page__quote-shelf { grid-column: 1 / -1; }
+  .saved-page :global(.saved-page__revisit) {
+    border-inline-start: 2px solid var(--blue); padding-inline-start: .65rem;
+    margin: .45rem 0 0; overflow-wrap: anywhere;
+  }
+  .saved-page :global(.saved-page__revisit strong) { display: block; color: var(--muted); font: 600 .875rem var(--font-ui); }
+  .saved-page :global(.saved-page__revisit span) { display: block; white-space: pre-wrap; }
+  .saved-page :global(.saved-page__dynamic) { display: flex; gap: 1rem; justify-content: space-between; align-items: start; padding: .8rem 0; border-block-end: 1px solid var(--line); }
+  .saved-page :global(.saved-page__dynamic-remove) { border: 0; background: none; padding: 0; cursor: pointer; }
 
   .saved-page__pattern {
     margin-block: 1rem .25rem;

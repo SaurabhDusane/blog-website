@@ -2,6 +2,7 @@ import { handleApi, isApiPath, parsePostCatalog } from './api.mjs';
 import { createD1Storage } from './d1-storage.mjs';
 import { handleEditorialApi } from './editorial-api.mjs';
 import { handleEditorialPage } from './editorial-pages.mjs';
+import { handleEarlyReader } from './early-reader-api.mjs';
 
 function decodeAsset(body) {
   const raw = atob(body);
@@ -71,7 +72,8 @@ export function createWorker(assets, redirects = {}) {
         exists: (pathname) => Object.hasOwn(assets, pathname) || Object.hasOwn(redirects, pathname),
         ip: local?.ip ?? request.headers.get('CF-Connecting-IP'),
       };
-      const editorial = await handleEditorialApi(request, context) ?? await handleEditorialPage(request, url, context, assets);
+      const editorial = await handleEarlyReader(request, url, context) ?? await handleEditorialApi(request, context)
+        ?? await handleEditorialPage(request, url, context, assets);
       if (editorial) return editorial;
       if (!isApiPath(url.pathname)) return serveAsset(request, url, assets, redirects);
       return handleApi(request, {

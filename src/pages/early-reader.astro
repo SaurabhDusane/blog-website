@@ -1,0 +1,88 @@
+---
+import '../styles/global.css';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Early reader · Second Ink</title>
+  </head>
+  <body>
+    <main class="wrap early-reader" data-early-reader>
+      <p class="eyebrow">Second Ink · Early reader</p>
+      <h1 data-early-title>A draft for you</h1>
+      <p role="status" data-early-message>Opening the invitation…</p>
+      <noscript><p>Turn on JavaScript to read the draft from your invitation.</p></noscript>
+      <article data-early-essay hidden>
+        <p data-early-description></p>
+        <div data-early-body></div>
+      </article>
+      <form data-early-reply hidden>
+        <h2>Write back about this draft</h2>
+        <label for="draft-feedback">What stayed with you, or where did you get stuck?</label>
+        <textarea id="draft-feedback" rows="6" maxlength="3000" required></textarea>
+        <button type="submit" class="button">Send private feedback</button>
+        <p role="status" data-early-reply-message></p>
+      </form>
+    </main>
+  </body>
+</html>
+
+<script>
+  import { micromark } from 'micromark';
+  const token = window.location.hash.slice(1);
+  const message = document.querySelector<HTMLElement>('[data-early-message]')!;
+  const form = document.querySelector<HTMLFormElement>('[data-early-reply]')!;
+  const button = form.querySelector<HTMLButtonElement>('button')!;
+  const note = form.querySelector<HTMLTextAreaElement>('textarea')!;
+  const replyMessage = form.querySelector<HTMLElement>('[data-early-reply-message]')!;
+  async function call(data: Record<string, unknown>) {
+    const response = await fetch('/api/early-reader', {
+      method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, ...data }),
+    });
+    const value = await response.json().catch(() => null);
+    if (!response.ok) throw Error(value?.message || 'This invitation could not be opened.');
+    return value;
+  }
+  if (!/^[a-f0-9]{64}$/.test(token)) message.textContent = 'Open the full link your writer shared.';
+  else void call({ action: 'read' }).then(({ draft }) => {
+    document.querySelector<HTMLElement>('[data-early-title]')!.textContent = draft.title;
+    document.querySelector<HTMLElement>('[data-early-description]')!.textContent = draft.description;
+    const content = document.createElement('template');
+    content.innerHTML = micromark(draft.body);
+    for (const link of content.content.querySelectorAll('img,a')) link.replaceWith(link.textContent ?? '');
+    document.querySelector('[data-early-body]')?.append(content.content);
+    document.querySelector<HTMLElement>('[data-early-essay]')!.hidden = false;
+    form.hidden = draft.responded;
+    message.textContent = draft.responded ? 'Your feedback has been sent.' : '';
+  }).catch((error: Error) => { message.textContent = error.message; });
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!note.value.trim()) { note.focus(); return; }
+    button.disabled = true;
+    try {
+      await call({ action: 'reply', note: note.value });
+      form.hidden = true;
+      note.value = '';
+      message.textContent = 'Your feedback has been sent.';
+    } catch (error) { replyMessage.textContent = (error as Error).message; }
+    finally { button.disabled = false; }
+  });
+</script>
+
+<style>
+  .early-reader { max-width: 62rem; padding-block: clamp(2rem, 6vw, 5rem); }
+  .early-reader h1 { font-size: clamp(2.6rem, 8vw, 5.8rem); line-height: 1; }
+  .early-reader article { max-inline-size: 66ch; font: 1.13rem/1.72 var(--font-body); overflow-wrap: anywhere; }
+  .early-reader article :global(pre) { white-space: pre-wrap; }
+  .early-reader article > p { color: var(--muted); margin-block: 1.15rem 1.75rem; }
+  .early-reader form { max-inline-size: 62ch; border-block-start: 1px solid var(--line); margin-block-start: 2rem; padding-block-start: 1rem; }
+  .early-reader label { display: block; margin-block: .55rem; }
+  .early-reader textarea { display: block; width: 100%; color: var(--ink); background: var(--paper); font: inherit; padding: .65rem; margin-block-end: .85rem; border: 1px solid var(--muted); }
+  .early-reader [role='status']:empty { display: none; }
+</style>

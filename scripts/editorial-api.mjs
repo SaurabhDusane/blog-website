@@ -20,6 +20,15 @@ function documentName(value) {
   return name.length <= 220 && /^[^/\\\x00-\x1f\x7f]+\.(pdf|docx)$/i.test(name) ? name : null;
 }
 
+function labelOverrides(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+  const { topics, mood } = value;
+  if (topics !== undefined && (!Array.isArray(topics) || topics.length > Object.keys(essayTopics).length
+    || topics.some((id) => typeof id !== 'string' || !Object.hasOwn(essayTopics, id)))) return;
+  if (mood !== undefined && !['reflective', 'practical', 'curious'].includes(mood)) return;
+  return { ...(topics !== undefined ? { topics: [...new Set(topics)] } : {}), ...(mood !== undefined ? { mood } : {}) };
+}
+
 async function availableEssay({ storage, catalog }, slug) {
   return validSlug(slug) && ((await catalog()).has(slug) || Boolean(await storage.deskPublication(slug)));
 }
@@ -86,7 +95,10 @@ async function handleDrafts(request, url, context) {
         || !await bucket.head(data.documentKey)) return error('Upload the original document again before saving it.', 422);
       documentKey = data.documentKey;
     }
-    snapshot = { title, description, body, documentKey, filename };
+    const overrides = Object.hasOwn(data, 'overrides') ? labelOverrides(data.overrides)
+      : data.base > 0 ? (await storage.deskRevision(data.slug, data.base))?.overrides ?? {} : {};
+    if (!overrides) return error('Choose topics and a mood from the desk’s labels.', 422);
+    snapshot = { title, description, body, documentKey, filename, overrides };
   }
   const revision = await storage.saveDeskRevision(data.slug, data.base, snapshot, now());
   return revision ? json({ revision }, 201) : conflict();

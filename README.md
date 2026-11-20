@@ -25,8 +25,6 @@ The production preview serves the built site and handles reader feelings, newsle
 
 Add Word and text-based PDF essays to `posts/essays/` on `main`. The [publishing guide](PUBLISHING.md) covers uploads, updates, and the conversion report. Use `updates` for changes you want to review before merging.
 
-The public GitHub repository publishes its `main` branch through Netlify’s connected build. The audience is configured separately in Netlify.
-
 On the live Sites deployment, the [publishing desk](PUBLISHING.md#publish-from-the-browser) also accepts Word and text-based PDF uploads. The desk keeps working drafts and their originals in Sites storage. Use the repository workflow for existing repository essays, document layouts with complex formatting, and MDX features such as margins and inline citations.
 
 ```text
@@ -136,6 +134,9 @@ Use **Response backups** in the signed-in desk to download a current JSON export
 
 ## Reader tools
 
+- **Questions** brings together essays on an ongoing question. Follow on this device to see new entries or subscribe to that question’s RSS feed. Add or update the Markdown list in `src/content/questions/` to grow a question. Each `posts` entry includes `post`, `addedAt`, and an optional note.
+- **Set aside with a note** saves an essay and a private reason on the current device. The note appears when you return to the essay or open Saved.
+
 - **Ask the archive** uses the published essay index to answer a reader’s question with excerpts and direct links to passages.
 - **Editions** puts essays from different subjects in a sequence around a question. Each edition has its own link and a downloadable newsletter draft.
 - **Loose Threads** collects short notes and lets readers open one at random. A thread can link forward to its finished essay.
@@ -149,13 +150,15 @@ Use **Response backups** in the signed-in desk to download a current JSON export
 - **Quote image** turns a highlighted passage or a passage from the end-of-essay picker into a styled PNG. The image can be downloaded and, when your device supports sharing files, shared directly.
 - **Link previews** use a 1200 × 630 share image with the essay title and editorial mood generated at build time. Open Graph and X metadata point to that image. External link unfurlers need access to the publication to retrieve it.
 - **Offline** keeps a chosen essay and the assets needed to read it in the current browser. Select **Keep offline** on an essay, then open it from `/offline/`. Offline saves are separate from ordinary bookmarks. Reader submissions and the private desk use a network connection.
-- **Evening appearance** follows approximate sunrise and sunset for the desk’s Phoenix clock. The homepage greeting changes with the clock, and the automatic theme uses it until you pick a theme. Choose **Auto** in reading settings to return to the default. The calculation uses no location permission. [NOAA solar equations](https://gml.noaa.gov/grad/solcalc/solareqns.PDF)
+- **Paper theme** starts in warm beige. Choose **Auto** in reading settings to follow approximate sunrise and sunset for the desk’s Phoenix clock, which also updates the homepage greeting. The calculation uses no location permission. [NOAA solar equations](https://gml.noaa.gov/grad/solcalc/solareqns.PDF)
 
 Astro renders essays to HTML. Explore uses a static index of published titles, metadata, and essay passages. Ordinary article links can prefetch after hover, keyboard focus, or approaching the viewport. The browser skips prefetch on slower connections or with Data Saver enabled. Thin server routes handle feedback and the dashboard. Sites stores feedback in D1 and local preview uses SQLite through Node.
 
 ## Connect GitHub to Netlify
 
-This repository uses Netlify’s connected Git build. The workflow below covers an optional GitHub Actions deployment for a separate private repository. Browser publishing, voice notes, and scheduled response backups use the D1 and R2 bindings of a Sites deployment.
+The public GitHub repository publishes its `main` branch through Netlify’s connected build. The workflow below covers a separate private repository.
+
+Netlify can deploy the existing Astro output and run the response desk API. The live Second Ink site is hosted on ChatGPT Sites with D1 and R2 bindings. The GitHub workflow can publish to a separate Netlify URL once that project is connected. Keep the current site available while verifying the staged site and arranging any reader-data or backup migration.
 
 1. **Create the private GitHub repository.** In GitHub, choose **+ → New repository**, set visibility to **Private**, and select **Create repository**. Place the project files at the repository root on `main`, including `.github/workflows/publish.yml` and `posts/`. You can also use an existing private repository that already holds these files.
 2. **Create a Netlify project for manual deploys.** In Netlify choose **Projects → Add new project → Deploy manually**. For the initial setup, use a harmless placeholder folder with an `index.html`. GitHub Actions manages later releases. [Netlify Drop setup](https://docs.netlify.com/start/quickstarts/netlify-drop-quickstart/)

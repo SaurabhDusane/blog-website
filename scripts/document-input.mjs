@@ -38,7 +38,9 @@ export async function documentSources(root) {
       const sidecars = extension === 'pdf' ? [...metadata]
         .filter(([name]) => name.replace(/\.ya?ml$/i, '') === stem)
         .map(([, path]) => path) : [];
-      inputs.push({ path: prefix + '/' + item.name, filename: item.name, draft, looseThread, format: extension, stem, sidecars });
+      const labelsPath = prefix + '/' + item.name + '.labels.yml';
+      inputs.push({ path: prefix + '/' + item.name, filename: item.name, draft, looseThread, format: extension, stem, sidecars,
+        labelsPath, labelsFile: metadata.get(item.name + '.labels.yml') });
     }
   }
   return inputs.sort((first, second) => first.path.localeCompare(second.path, 'en'));
@@ -54,22 +56,22 @@ export async function readSource(root, source) {
   return { bytes, info, sourceHash: digest(bytes) };
 }
 
-export async function readPdfMetadata(root, sidecars) {
+export async function readPdfMetadata(root, sidecars, label = 'PDF companion file') {
   if (!sidecars.length) return {};
   if (sidecars.length > 1) throw new Error('Use one YAML companion file for this PDF.');
   const path = join(root, sidecars[0]);
   const stat = await lstat(path);
-  if (!stat.isFile() || stat.size > 64 * 1024) throw new Error('The PDF companion file exceeds the 64 KiB metadata limit.');
+  if (!stat.isFile() || stat.size > 64 * 1024) throw new Error(`The ${label} exceeds the 64 KiB metadata limit.`);
   const document = parseDocument(await readFile(path, 'utf8'), { uniqueKeys: true });
-  if (document.errors.length) throw new Error('The PDF companion file could not be read as YAML.');
+  if (document.errors.length) throw new Error(`The ${label} could not be read as YAML.`);
   let values;
   try {
     values = document.toJS({ mapAsMap: true, maxAliasCount: 0 });
   } catch {
-    throw new Error('The PDF companion file contains unsupported YAML aliases.');
+    throw new Error(`The ${label} contains unsupported YAML aliases.`);
   }
   if (values === null) return {};
-  if (!(values instanceof Map)) throw new Error('The PDF companion file needs one field per line.');
+  if (!(values instanceof Map)) throw new Error(`The ${label} needs one field per line.`);
   const metadata = {};
   for (const [key, value] of values) {
     const field = typeof key === 'string' ? metadataField(key) : '';
@@ -89,13 +91,23 @@ export async function readPdfMetadata(root, sidecars) {
   return metadata;
 }
 
+export async function readLabelCorrections(root, file) {
+  if (!file) return {};
+  const metadata = await readPdfMetadata(root, [file], 'label correction file');
+  const { tags, mood } = metadata;
+  if (mood !== undefined && !['reflective', 'practical', 'curious'].includes(mood.toLowerCase())) {
+    throw new Error('A corrected mood must be reflective, practical, or curious.');
+  }
+  return { ...(tags !== undefined ? { tags } : {}), ...(mood !== undefined ? { mood } : {}) };
+}
+
 export function committedDate(root, path) {
   const dates = git(root, ['log', '--diff-filter=A', '--follow', '--format=%cs', '--', path]).trim();
   return validDate(dates.split(/\r?\n/).at(-1));
 }
 
 export function editDate(root, source) {
-  const date = git(root, ['log', '-1', '--format=%cs', '--', source.path, ...source.sidecars]).trim();
+  const date = git(root, ['log', '-1', '--format=%cs', '--', source.path, ...source.sidecars, source.labelsPath].filter(Boolean)).trim();
   return validDate(date);
 }
 

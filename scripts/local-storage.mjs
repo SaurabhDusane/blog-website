@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createFeedbackStorage } from './feedback-storage.mjs';
 import { createEditorialStorage } from './editorial-storage.mjs';
+import { createEarlyReaderStorage } from './early-reader-storage.mjs';
 import { insertReply, insertSubscription } from './submissions.mjs';
 
 const defaultPath = fileURLToPath(new URL('../.data/second-ink.sqlite', import.meta.url));
@@ -63,6 +64,7 @@ export function createLocalStorage(databasePath = defaultPath) {
   return {
     ...createFeedbackStorage(all, run),
     ...createEditorialStorage(all, run),
+    ...createEarlyReaderStorage(all, run),
     newsletter: (...values) => run(insertSubscription, ...values),
     reply: (...values) => run(insertReply, ...values),
     close() {

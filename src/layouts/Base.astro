@@ -15,9 +15,10 @@ interface Props {
   type?: 'article' | 'website';
   wide?: boolean;
   noindex?: boolean;
+  feed?: { href: string; title: string };
 }
 
-const { title, description = site.description, image = site.socialImage, imageAlt = site.socialImageAlt, type = 'website', wide = false, noindex = false } = Astro.props;
+const { title, description = site.description, image = site.socialImage, imageAlt = site.socialImageAlt, type = 'website', wide = false, noindex = false, feed } = Astro.props;
 const pageTitle = title ? `${title} · ${site.name}` : `${site.name} — Notes from my reading desk`;
 const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 const socialImage = new URL(image, Astro.site ?? Astro.url);
@@ -26,6 +27,7 @@ const preview = draftsEnabled();
 const nav = [
   { href: '/start/', label: 'Start here' },
   { href: '/explore/', label: 'Explore' },
+  { href: '/questions/', label: 'Questions' },
   { href: '/loose-threads/', label: 'Loose Threads' },
   { href: '/editions/', label: 'Editions' },
   preview ? { href: '/drafts/', label: 'Drafts' } : { href: '/saved/', label: 'Saved' },
@@ -47,6 +49,7 @@ const nav = [
     {!preview && <link rel="apple-touch-icon" href="/offline-icon-192.png" />}
     <link rel="canonical" href={canonical} />
     <link rel="alternate" href="/rss.xml" type="application/rss+xml" title={site.name} />
+    {feed && <link rel="alternate" href={feed.href} type="application/rss+xml" title={feed.title} />}
     <meta property="og:site_name" content={site.name} />
     <meta property="og:type" content={type} />
     <meta property="og:title" content={pageTitle} />
@@ -73,7 +76,7 @@ const nav = [
         <span class="registration" aria-hidden="true"></span><span>Second Ink</span>
       </a>
       <nav aria-label="Main navigation">
-        {nav.map(({ href, label }) => <a href={href} aria-current={path === href ? 'page' : undefined}>{label}</a>)}
+        {nav.map(({ href, label }) => <a href={href} aria-current={path === href ? 'page' : path.startsWith(href) ? 'location' : undefined}>{label}</a>)}
       </nav>
     </header>
     <main id="main-content" class:list={[wide && 'site-main-wide']} tabindex="-1">

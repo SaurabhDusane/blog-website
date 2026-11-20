@@ -2,7 +2,7 @@
 
 ## Publish from the browser
 
-1. On a Sites deployment of Second Ink, open `/desk/publishing/` and use the same owner password as the response desk.
+1. On the owner Site, open `/desk/publishing/` and use the same owner password as the response desk.
 2. Start an essay, or choose **Import a Word document or PDF** to bring in its text. The draft editor accepts Markdown and keeps the original with each saved version. Use **Phone width** and **Review links** before saving. The desk flags missing Second Ink pages and lets you open external links for review.
 3. Choose **Save draft**, then **Publish saved draft** when it’s ready. The live essay gets a permanent `/posts/` address and appears in Explore, RSS, and the sitemap. Under **Version history**, open **Restore this version** on an older draft to make it your latest draft. Publish it when you’re ready. The live copy stays in place during review.
 4. Under **Voice notes**, pick any published essay, upload an MP3, M4A, WAV, or Ogg recording, and add its transcript. Saving adds a player and transcript to that essay. You can replace or remove the recording on the same screen.
@@ -11,9 +11,7 @@ The browser import supports Word and text-based PDFs up to 20 MiB. It brings in 
 
 ## Publish through the repository
 
-The linked Netlify project builds on changes to GitHub `main`.
-
-To use Vercel, import `main`, choose Astro, and leave the root directory at `./`. The repository's `vercel.json` runs the same document-import build and serves the generated static files. Topic and mood sorting run during the build without an API key. The publishing desk and reader response API run on a Sites deployment with its storage bindings.
+Netlify’s connected build publishes GitHub `main`. If you use Vercel, import `main` with the Astro preset and leave the repository’s `vercel.json` in place.
 
 ## How to publish a note
 
@@ -21,7 +19,7 @@ To use Vercel, import `main`, choose Astro, and leave the root directory at `./`
 2. Select **Add file → Upload files** and drop in your `.docx` or text-based `.pdf`.
 3. Choose **Commit directly to the `main` branch** and select **Commit changes**. The connected publishing workflow converts the essay and adds its topics and mood. Use `updates` for changes you want to review before merging to `main`.
 
-Upload a replacement with the same filename to update a note. Delete the file to remove the note. A clearly identifiable rename keeps its existing URL. Use the **Actions** tab for build checks and Netlify’s **Deploys** tab for the publishing result.
+Upload a replacement with the same filename to update a note. Delete the file to remove the note. A clearly identifiable rename keeps its existing URL. Use the **Actions** tab for build checks and your connected host’s deploy log for the publishing result.
 
 For a short thought, upload to `posts/threads/`. You can also add optional connections, dated reflections, and labeled margins to an essay. [Editorial options](README.md#connections-revisions-and-loose-threads)
 
@@ -29,9 +27,28 @@ For a short thought, upload to `posts/threads/`. You can also add optional conne
 
 The **Document conversion** summary in GitHub Actions shows the topics and mood applied to each published upload. It labels your supplied metadata and shows the confidence of automatic assignments. **Unassigned** means the sorter found too little evidence for a topic. The same report appears in the build log and at `.data/document-import-report.txt` when you build locally.
 
-- Open the latest build in Netlify and look for the file in **Document conversion report**. The report explains drafts, future publication dates, removals, and conversion problems.
+- Open **Actions → Publish Second Ink → latest run → Summary** and look for the filename. The report explains drafts, future publication dates, removals, and conversion problems. A failed replacement keeps the last successfully published version. The workflow also leaves a failure note on the commit when GitHub permits it.
 - If it’s a scan, export a PDF with selectable text and upload it again. Image-only PDFs are skipped, and OCR is disabled. If a file is protected or damaged, export an unlocked copy.
 - If GitHub rejects the upload, keep each file at or below **25 MiB** for browser uploads. The importer itself accepts up to **40 MiB**. [GitHub upload limits](https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository)
+
+## Correct a topic or mood
+
+For a draft created in the publishing desk, open **Topics and mood** and choose your labels. Saving creates a new revision. Your choices carry over when you edit or publish that draft. Return a field to automatic to let the sorter choose it again.
+
+For a repository upload, open **Correct a label** in the Actions summary. Add or edit the named `.labels.yml` file beside the document. For example, add `my-essay.docx.labels.yml` alongside `my-essay.docx`. The same pattern works for PDFs. Include only the settings you want to correct.
+
+```yaml
+tags: [Politics & Civic Life, Tools & Technology]
+mood: curious
+```
+
+To clear all tags, use `tags: []`. Deleting the correction file restores the upload’s usual tags and mood on the next build.
+
+## Invite a reader to a saved draft
+
+Save a draft in the owner’s desk. Open **Invite an early reader**, choose when the link should expire, and share the copied link yourself. The desk keeps replies under the version the reader received. Use **Close link** to end access early.
+
+The owner’s Site requires sign-in. To offer links to guests, configure a review endpoint on the public reader host. On the public host, set `SECOND_INK_REVIEW_UPSTREAM` to the HTTPS origin of the owner’s Site, `SECOND_INK_REVIEW_UPSTREAM_TOKEN` to its server-to-server credential, and `SECOND_INK_REVIEW_BRIDGE_SECRET` to a random 32-byte hex secret. Store the token and bridge secret as server secrets. On the owner’s Site, set the same bridge secret and set `SECOND_INK_REVIEW_ORIGIN` to the HTTPS origin of the guest host. Deploy both hosts with those settings and test an invitation before sharing it.
 
 ## How the system works
 
@@ -41,4 +58,4 @@ If you want more control, put a header at the start of your Word document or upl
 
 Put drafts in `posts/drafts/` or set `status: draft`. Set `publish-date` to a future date to hold a note until the next build after that time. Date-only schedules use Phoenix midnight. Drafts and scheduled notes can be read in private previews before publication. Every published PDF offers **Read the original PDF**. Notes with complex layouts also offer a page viewer.
 
-Netlify converts the files and publishes the resulting essays. GitHub Actions runs the same checks on `main`, `updates`, and pull requests. [Technical notes](README.md#document-publishing-internals)
+The linked host converts the files and publishes the resulting essays. GitHub Actions runs the build checks on `main` and `updates`. The conversion report and the ledger of published URLs and last-good files are available to troubleshoot or extend the workflow. [Technical notes](README.md#document-publishing-internals)

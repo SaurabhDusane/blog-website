@@ -15,6 +15,8 @@ Second Ink borrows the structure of a personal reading desk. The homepage lets r
 
 Use the shared `--paper`, `--ink`, `--muted`, `--blue`, `--red`, `--wash`, and `--line` tokens. Text links have an underline or an explicit control shape. Use color and a clear label together for state and status.
 
+Use the light paper theme for first visits. Readers can choose Sepia, Dark, or Auto under **Reading settings**. Auto follows Phoenix daylight. Preferences stay in the current browser.
+
 ## Type and space
 
 - **Instrument Serif** for the wordmark and headings. Headlines scale with the viewport and wrap at display-friendly widths.
