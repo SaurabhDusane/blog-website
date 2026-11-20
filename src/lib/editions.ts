@@ -1,5 +1,5 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
-import { postPath, postRedirects } from './content';
+import { getPosts, postPath, postRedirects } from './content';
 
 type Edition = CollectionEntry<'editions'>;
 type Post = CollectionEntry<'posts'>;
@@ -24,6 +24,15 @@ export function editionEssays(edition: Edition, posts: Post[]) {
     if (!entry || entry.data.locale !== edition.data.locale || seen.has(entry.id)) return [];
     seen.add(entry.id);
     return [{ entry, note }];
+  });
+}
+
+export async function editionEntries(published?: Post[]) {
+  const [editions, posts] = await Promise.all([getEditions(), published ?? getPosts()]);
+  return editions.map((edition) => {
+    const essays = editionEssays(edition, posts);
+    const discoverable = essays.filter(({ entry }) => !entry.data.looseThread).length >= 2;
+    return { edition, essays, discoverable };
   });
 }
 

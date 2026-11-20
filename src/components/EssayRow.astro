@@ -8,7 +8,7 @@ interface Props {
   topic?: string;
   id?: string;
   compact?: boolean;
-  filter?: { text: string; topics: string };
+  filter?: { text: string; topics: string; kind?: 'note' };
 }
 
 const { href, title, description, minutes, mood, topic, id, compact, filter } = Astro.props;
@@ -22,6 +22,7 @@ const { href, title, description, minutes, mood, topic, id, compact, filter } = 
   data-topics={filter?.topics}
   data-minutes={filter ? minutes : undefined}
   data-mood={filter ? mood : undefined}
+  data-kind={filter?.kind}
 >
   <div class="essay-row__body">
     <a class="essay-row__title" href={href}>{title}</a>

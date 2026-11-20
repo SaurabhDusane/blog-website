@@ -29,13 +29,13 @@ Use the shared `--paper`, `--ink`, `--muted`, `--blue`, `--red`, `--wash`, and `
 | Reading desk | Keep one note in view at a time. Mood tabs switch the note with one tap or the arrow keys. |
 | Essay row | Keep the title as the primary link and align the reading estimate on a common edge. Stack metadata where width is limited. |
 | Search excerpt | Put the matched passage below its essay and mark the matching words. Keep browse mode compact. |
-| Archive question | Return short excerpts in the author's words. Give each one a direct link to its place in the essay. |
+| Search by question | Return short excerpts in the author's words. Give each one a direct link to its source passage. |
 | Source card | Give the original article, its byline, and the author’s reason for picking it a quiet place above the take. |
 | First impression | Offer three choices and a plain reading link. Keep the answer split beside the question. |
 | Reconsideration | Show the reader’s own answers together. Keep group movement hidden until enough readers have responded. |
 | Margin note | Put it beside the passage on wide screens and inline below it on small screens. Keep the label and link meaningful when read aloud. |
 | Essay connection and revision | Keep an author’s reason next to the linked essay. Date later reflections and place them below the original text. |
-| Loose Threads | Give each short note room to stand alone. Show a direct link when it becomes a longer essay. |
+| Short note | Include short notes in Essays and introduce the format filter once there are notes to show. Link to a longer follow-up when one exists. |
 | Reader controls | Keep the toolbar compact, provide named controls for themes and size, and retain an exit from focus mode. |
 | Saved quote | Set the passage in the reading typeface and put the source and actions beneath it. |
 | Saved quote pattern | Keep the pattern collapsed until opened. Show one linkable quote from each of three essays. |

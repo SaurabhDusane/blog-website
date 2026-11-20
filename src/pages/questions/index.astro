@@ -3,10 +3,10 @@ import Base from '../../layouts/Base.astro';
 import FollowQuestion from '../../components/FollowQuestion.astro';
 import { questionEntries, questionPath } from '../../lib/questions';
 import '../../styles/discovery.css';
-const questions = await questionEntries();
+const questions = (await questionEntries()).filter(({ discoverable }) => discoverable);
 ---
 
-<Base title="Questions" description="Questions I keep coming back to across essays.">
+<Base title="Questions" description="Questions I keep coming back to across essays." noindex={questions.length === 0}>
   <div class="wrap discovery">
     <header class="discovery__header"><h1>Questions</h1><p>Some questions need more than one essay. Follow one to see where I take it next.</p></header>
     {questions.length > 0 ? <ul class="question-index" role="list">
@@ -15,7 +15,7 @@ const questions = await questionEntries();
         <p>{question.data.description}</p>
         <FollowQuestion id={question.id} essays={entries.map(({ post }) => post.id)} />
       </li>)}
-    </ul> : <p>The first question is still taking shape.</p>}
+    </ul> : <p>I’ll start a thread when I have a few essays on the same question. <a class="text-link" href="/explore/">Browse my essays</a></p>}
   </div>
 </Base>
 

@@ -3,6 +3,7 @@ import Base from '../layouts/Base.astro';
 import EssayRow from '../components/EssayRow.astro';
 import ReadingPathProgress from '../components/ReadingPathProgress.astro';
 import { getPosts, getSeries, postPath, readingPathPosts } from '../lib/content';
+import { journalAuthorPath } from '../lib/journal-author.mjs';
 import '../styles/discovery.css';
 
 const [series, posts] = await Promise.all([getSeries(), getPosts()]);
@@ -10,17 +11,21 @@ const paths = series.map((path) => ({
   path,
   stops: readingPathPosts(path, posts),
 })).filter(({ stops }) => stops.length > 0);
+const hasPaths = paths.length > 0;
 ---
 
-<Base title="Start here" description="Follow a short reading path through Second Ink.">
+<Base title="Start here" description="Find a place to start reading Second Ink." noindex={!hasPaths}>
   <div class="wrap discovery start-page">
     <header class="discovery__header">
       <h1>Start here</h1>
-      <p>Pick the idea that’s on your mind. Each path links a few essays you can read in one sitting or come back to.</p>
+      {hasPaths && <p>Pick the idea that’s on your mind. Each path links a few essays you can read in one sitting or come back to.</p>}
     </header>
 
-    {paths.length === 0 && <p>The first reading path is still on the desk. <a class="text-link" href="/explore/">Browse essays</a></p>}
-    <div class="start-page__paths">
+    {!hasPaths && <div class="start-page__links">
+      {posts.length > 0 && <a class="button" href={`${journalAuthorPath}#question-desk-heading`}>Pick a question at my desk</a>}
+      <a class={posts.length > 0 ? 'text-link' : 'button'} href="/explore/">Browse all essays</a>
+    </div>}
+    {hasPaths && <div class="start-page__paths">
       {paths.map(({ path, stops }) => (
         <section class="reading-path" aria-labelledby={`path-${path.id}`}>
           <div class="reading-path__intro">
@@ -34,6 +39,16 @@ const paths = series.map((path) => ({
           </ol>
         </section>
       ))}
-    </div>
+    </div>}
   </div>
 </Base>
+
+<style>
+  .start-page__links {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1rem;
+    margin-block-start: 1.5rem;
+  }
+</style>

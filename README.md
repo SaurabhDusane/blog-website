@@ -59,9 +59,9 @@ why-i-picked-this: I kept thinking about it on the walk home.
 - Word’s headings, lists, emphasis, tables, quotes, and footnotes carry through to the site. Add image descriptions and use Word’s **References → Insert Footnote** for a margin note. The importer sizes supported images to WebP and makes an outline when at least three headings remain in the body. For PDFs, every successful import links to the original file, and complex layouts get an expandable viewer. A textless scan is reported and skipped. OCR is disabled.
 - Other Word fields include `archive-url` for a saved source copy, `claim` and `claim-question` for the poll, and `question` for the follow-up. `mood` accepts `reflective`, `practical`, or `curious`. `update` accepts `YYYY-MM-DD | your note`. Every essay uses Saurabh Dusane’s byline automatically.
 
-### Connections, revisions, and Loose Threads
+### Connections, revisions, and short notes
 
-Drop a short Word document or PDF in `posts/threads/` to give it a place on **Loose Threads**. A document in `posts/` or `posts/drafts/` can also use `Kind: thread` in its optional metadata. Add `Follow-up` when a short thought grows into a full essay. Use the ending of the essay’s URL as its slug.
+Drop a short Word document or PDF in `posts/threads/` to publish it as a short note in **Essays**. A document in `posts/` or `posts/drafts/` can also use `Kind: thread` in its optional metadata. Add `Follow-up` when a short thought grows into a full essay. Use the ending of the essay’s URL as its slug.
 
 Word can use these lines in the optional header. Each connection or revision gets its own line.
 
@@ -134,12 +134,12 @@ Use **Response backups** in the signed-in desk to download a current JSON export
 
 ## Reader tools
 
-- **Questions** brings together essays on an ongoing question. Follow on this device to see new entries or subscribe to that question’s RSS feed. Add or update the Markdown list in `src/content/questions/` to grow a question. Each `posts` entry includes `post`, `addedAt`, and an optional note.
+- **Questions** connects essays that revisit the same idea. Follow on this device to see new entries or subscribe to that question’s RSS feed. Add or update the Markdown list in `src/content/questions/` to grow a question. Each `posts` entry includes `post`, `addedAt`, and an optional note.
 - **Set aside with a note** saves an essay and a private reason on the current device. The note appears when you return to the essay or open Saved.
 
-- **Ask the archive** uses the published essay index to answer a reader’s question with excerpts and direct links to passages.
-- **Editions** puts essays from different subjects in a sequence around a question. Each edition has its own link and a downloadable newsletter draft.
-- **Loose Threads** collects short notes and lets readers open one at random. A thread can link forward to its finished essay.
+- **Search by question** finds matching passages across published writing and links to their sources.
+- **Reading editions** gives essays an order you’ve chosen for readers. Each edition has its own link and a downloadable newsletter draft. Questions and editions appear under **Read around an idea** in Essays once they link at least two distinct published essays.
+- **Short notes** appear alongside essays, with a format filter once a note is available. A short note can link forward to the longer essay it inspired.
 - **Where do you land now?** appears after an essay with a first-impression question. Readers compare their own answers after reading. The site shows shared movement once enough other readers have answered.
 - **Connections** and **What I think now** display the author’s optional links and dated reflections.
 - **Saved quote patterns** show three saved lines from different essays when the wording suggests a shared theme. This runs in the browser using the quotes already on that device.

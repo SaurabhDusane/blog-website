@@ -16,11 +16,13 @@ const readerApiOrigin = process.env.PUBLIC_READER_API_ORIGIN ?? env.PUBLIC_READE
   ?? (productionVercel ? 'https://second-ink-early-reader.tonedoak6.chatgpt.site' : '');
 const preview = process.env.SECOND_INK_INCLUDE_DRAFTS === '1';
 let redirectedPaths = new Set();
+let buildDirectory;
 
 const redirects = {
   name: 'second-ink-document-redirects',
   hooks: {
     'astro:build:done': ({ dir }) => {
+      buildDirectory = dir;
       // Astro ignores route files beginning with an underscore.
       const source = new URL('posts/redirects.txt', dir);
       const target = new URL('_redirects', dir);
@@ -34,7 +36,15 @@ const redirects = {
 function isIndexable(url) {
   const { pathname } = new URL(url);
   if (pathname.startsWith('/desk/') || ['/saved/', '/offline/', '/under-the-blotter/', '/document-template/', '/early-reader/'].includes(pathname)) return false;
-  return !redirectedPaths.has(pathname);
+  if (redirectedPaths.has(pathname)) return false;
+  if (buildDirectory && /^\/(?:questions|editions|loose-threads|start)(?:\/|$)/.test(pathname)) {
+    const index = new URL(`.${pathname.replace(/\/$/, '')}/index.html`, buildDirectory);
+    if (existsSync(index)) {
+      const head = readFileSync(index, 'utf8').split('</head>', 1)[0];
+      if (/<meta name="robots" content="noindex(?:[,"])/.test(head)) return false;
+    }
+  }
+  return true;
 }
 
 export default defineConfig({

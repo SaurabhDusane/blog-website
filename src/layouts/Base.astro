@@ -26,12 +26,8 @@ const socialImage = new URL(image, Astro.site ?? Astro.url);
 const path = Astro.url.pathname;
 const preview = draftsEnabled();
 const nav = [
-  { href: '/start/', label: 'Start here' },
-  { href: '/explore/', label: 'Explore' },
-  { href: '/questions/', label: 'Questions' },
-  { href: '/loose-threads/', label: 'Loose Threads' },
-  { href: '/editions/', label: 'Editions' },
-  { href: journalAuthorPath, label: 'About me' },
+  { href: '/explore/', label: 'Essays', active: /^\/(?:posts|topics|questions|loose-threads|editions|series|start)(?:\/|$)/.test(path) },
+  { href: journalAuthorPath, label: 'About me', active: path === '/about/' },
   preview ? { href: '/drafts/', label: 'Drafts' } : { href: '/saved/', label: 'Saved' },
 ];
 ---
@@ -78,7 +74,7 @@ const nav = [
         <span class="registration" aria-hidden="true"></span><span>Second Ink</span>
       </a>
       <nav aria-label="Main navigation">
-        {nav.map(({ href, label }) => <a href={href} aria-current={path === href ? 'page' : path.startsWith(href) ? 'location' : undefined}>{label}</a>)}
+        {nav.map(({ href, label, active }) => <a href={href} aria-current={path === href ? 'page' : active || path.startsWith(href) ? 'location' : undefined}>{label}</a>)}
       </nav>
     </header>
     <main id="main-content" class:list={[wide && 'site-main-wide']} tabindex="-1">
@@ -86,7 +82,7 @@ const nav = [
     </main>
     <footer class="site-footer wrap">
       <div><a href="/" class="footer-mark">Second Ink</a><p>{site.description}</p></div>
-      <nav aria-label="Publication"><a href="/about/">About</a><a href="/newsletter/">Newsletter</a>{!preview && <a href="/offline/">Offline shelf</a>}<a href="/rss.xml">RSS</a></nav>
+      <nav aria-label="Publication"><a href="/about/">Why I write</a><a href="/newsletter/">Newsletter</a>{!preview && <a href="/offline/">Offline shelf</a>}<a href="/rss.xml">RSS</a></nav>
     </footer>
   </body>
 </html>

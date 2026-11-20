@@ -8,24 +8,24 @@ import '../../../styles/discovery.css';
 export async function getStaticPaths() {
   return (await questionEntries()).map((props) => ({ params: { slug: props.question.id }, props }));
 }
-const { question, entries } = Astro.props;
+const { question, entries, discoverable } = Astro.props;
 const { Content } = await render(question);
 const feed = { href: `/questions/${question.id}/rss.xml`, title: question.data.title };
 ---
 
-<Base title={question.data.title} description={question.data.description} feed={feed}>
+<Base title={question.data.title} description={question.data.description} feed={feed} noindex={entries.length === 0}>
   <div class="wrap discovery question-detail" data-question-entry>
-    <a class="text-link" href="/questions/">All questions</a>
+    <a class="text-link" href={discoverable ? '/questions/' : '/explore/'}>{discoverable ? 'All questions' : 'Browse my essays'}</a>
     <header class="discovery__header"><h1>{question.data.title}</h1><p>{question.data.description}</p></header>
     <div class="question-detail__intro"><Content /></div>
     <FollowQuestion id={question.id} essays={entries.map(({ post }) => post.id)} />
-    <ol class="question-detail__essays" role="list">
+    {entries.length > 0 ? <ol class="question-detail__essays" role="list">
       {entries.map(({ post, note }) => <li>
         <h2><a href={postPath(post)} data-question-essay={post.id}>{post.data.title}</a></h2>
         <p>{note ?? post.data.description}</p>
         <span>{post.data.minutes} min read</span>
       </li>)}
-    </ol>
+    </ol> : <p>I’m still gathering essays on this question.</p>}
   </div>
 </Base>
 

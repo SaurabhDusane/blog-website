@@ -54,14 +54,17 @@ const imported = documentSource ?? wordSource;
 const outline = (imported?.headings ?? headings).filter(({ depth }) => depth >= 2);
 const hasOutline = outline.length >= (imported ? 3 : 1);
 const hasNotes = !imported || imported.hasNotes;
+const followUpId = post.data.looseThread ? post.data.threadFollowUp : undefined;
 const [author, topics, related, publishedPosts] = await Promise.all([
   getJournalAuthor(),
   getTopics(),
   getRelatedPosts(post),
-  post.data.connections?.length ? getPosts() : [],
+  post.data.connections?.length || followUpId ? getPosts() : [],
 ]);
 const postsById = new Map(publishedPosts.map((entry) => [entry.id, entry]));
 const aliases = postRedirects(publishedPosts);
+const followUpPost = followUpId ? postsById.get(followUpId) ?? aliases.get(followUpId) : undefined;
+const followUp = followUpPost && followUpPost.id !== post.id && !followUpPost.data.looseThread ? followUpPost : undefined;
 const connectedIds = new Set([post.id]);
 const connections = (post.data.connections ?? []).flatMap(({ post: id, reason }) => {
   const target = postsById.get(id) ?? aliases.get(id);
@@ -106,6 +109,7 @@ const email = [import.meta.env.PUBLIC_AUTHOR_EMAIL, author.data.email]
         <time datetime={publishedAt.toISOString()}>{dateDisplay.format(publishedAt)}</time>
         {updatedAt && <span>Updated <time datetime={updatedAt.toISOString()}>{dateDisplay.format(updatedAt)}</time></span>}
         <span>{minutes} min read</span>
+        {post.data.looseThread && <span>Short note</span>}
         <span class="reader-mood">{mood}</span>
       </div>
       <SourceCard title={sourceTitle} author={sourceAuthor} url={sourceUrl} why={whyIPickedThis} archiveUrl={archiveUrl} />
@@ -205,6 +209,7 @@ const email = [import.meta.env.PUBLIC_AUTHOR_EMAIL, author.data.email]
           <div class="reader-prose" data-reader-prose>
             <Content />
           </div>
+          {followUp && <p class="reader-follow-up"><span>This grew into</span> <a href={postPath(followUp)}>{followUp.data.title}</a></p>}
           <AnnotatedSources post={post} />
         </article>
       </div>
@@ -286,6 +291,16 @@ const email = [import.meta.env.PUBLIC_AUTHOR_EMAIL, author.data.email]
     </div>
   </div>
 </Base>
+
+<style>
+  .reader-follow-up {
+    border-inline-start: 2px solid var(--blue);
+    margin: 1.5rem auto 0;
+    max-inline-size: 66ch;
+    padding-inline-start: .75rem;
+  }
+  .reader-follow-up span { color: var(--muted); margin-inline-end: .35rem; }
+</style>
 
 <script>
   import { initReader } from "../../scripts/reader";

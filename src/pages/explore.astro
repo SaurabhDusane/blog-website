@@ -2,6 +2,7 @@
 import Base from '../layouts/Base.astro';
 import ArchiveQuestions from '../components/ArchiveQuestions.astro';
 import EssayRow from '../components/EssayRow.astro';
+import RelatedReading from '../components/RelatedReading.astro';
 import { getPosts, getTopics, postPath } from '../lib/content';
 import { feelings } from '../lib/feelings';
 import '../styles/discovery.css';
@@ -9,69 +10,74 @@ import '../styles/discovery.css';
 const [posts, topics] = await Promise.all([getPosts(), getTopics()]);
 const topicNames = new Map(topics.map((topic) => [topic.id, topic.data.name]));
 const moods = [...new Set(posts.map(({ data }) => data.mood))].sort();
+const noteCount = posts.filter(({ data }) => data.looseThread).length;
+const noun = noteCount === 0 ? 'essay' : noteCount === posts.length ? 'note' : 'piece';
 ---
 
-<Base title="Explore" description="Search the text of Second Ink essays and filter by topic, reading time, or how it landed.">
-  <div class="wrap discovery" data-explore>
+<Base title="Essays" description="Browse and search Saurabh Dusane’s writing on Second Ink.">
+  <div class="wrap discovery writing" data-explore>
     <header class="discovery__header">
-      <h1>Explore</h1>
-      <p>Find an essay for the time you have and the mood you’re in.</p>
+      <h1>Essays</h1>
     </header>
 
-    <ArchiveQuestions />
-
     <div class="archive">
-      <aside class="archive__sidebar" aria-label="Archive filters">
-        <form class="archive__filters" action="/explore/" method="get" role="search">
+        <form class="archive__filters" action="/explore/" method="get" role="search" aria-label="Search my writing" hidden>
           <label class="archive__search">
-            <span>Search essays</span>
-            <input type="search" name="q" maxlength="120" placeholder="Try ‘index cards’" />
+            <span>Search my writing</span>
+            <input type="search" name="q" maxlength="120" placeholder="Search titles and text" />
           </label>
-          <div class="archive__selects">
-            <label>
-              <span>Topic</span>
-              <select name="topic">
-                <option value="">Every topic</option>
-                {topics.map((topic) => <option value={topic.id}>{topic.data.name}</option>)}
+          <div class="archive__tools">
+            <label class="archive__format" data-format-filter hidden>
+              <span>Format</span>
+              <select name="kind">
+                <option value="">All writing</option>
+                <option value="essays">Essays</option>
+                <option value="notes">Short notes</option>
               </select>
             </label>
-            <label>
-              <span>Reading time</span>
-              <select name="time">
-                <option value="">Any length</option>
-                <option value="quick">5 minutes or less</option>
-                <option value="steady">6–10 minutes</option>
-                <option value="long">11 minutes or more</option>
-              </select>
-            </label>
-            <label>
-              <span>Mood</span>
-              <select name="mood">
-                <option value="">Any mood</option>
-                {moods.map((mood) => <option value={mood}>{mood[0].toUpperCase() + mood.slice(1)}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>Reader feeling</span>
-              <select name="feeling">
-                <option value="">Any feeling</option>
-                {feelings.map(({ id, label }) => <option value={id}>{label}</option>)}
-              </select>
-            </label>
+            <details class="archive__options" data-archive-filters>
+              <summary>Filters</summary>
+              <div class="archive__selects">
+                <label data-topic-filter hidden>
+                  <span>Topic</span>
+                  <select name="topic">
+                    <option value="">Every topic</option>
+                    {topics.map((topic) => <option value={topic.id}>{topic.data.name}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <span>Reading time</span>
+                  <select name="time">
+                    <option value="">Any length</option>
+                    <option value="quick">5 minutes or less</option>
+                    <option value="steady">6–10 minutes</option>
+                    <option value="long">11 minutes or more</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Mood</span>
+                  <select name="mood">
+                    <option value="">Any mood</option>
+                    {moods.map((mood) => <option value={mood}>{mood[0].toUpperCase() + mood.slice(1)}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <span>Reader feeling</span>
+                  <select name="feeling">
+                    <option value="">Any feeling</option>
+                    {feelings.map(({ id, label }) => <option value={id}>{label}</option>)}
+                  </select>
+                </label>
+              </div>
+            </details>
+            <button class="archive__reset" type="button" data-reset-filters hidden>Clear search and filters</button>
           </div>
-          <button class="archive__reset" type="button" data-reset-filters hidden>Clear filters</button>
         </form>
-        <noscript>
-          <style is:inline>.archive__filters { display: none; }</style>
-          <p>Browse the full index below, or open a topic.</p>
-          <ul>{topics.map((topic) => <li><a href={`/topics/${topic.id}/`}>{topic.data.name}</a></li>)}</ul>
-        </noscript>
-      </aside>
 
       <section class="archive__results" aria-labelledby="archive-title">
         <header class="index-heading">
-          <h2 id="archive-title">The index</h2>
-          <p data-result-count role="status">{posts.length} {posts.length === 1 ? 'essay' : 'essays'}</p>
+          <h2 id="archive-title" class="sr-only">Published writing</h2>
+          <p data-result-count role="status">{posts.length} {noun}{posts.length === 1 ? '' : 's'}</p>
         </header>
         <ul class="essay-index" role="list" data-essay-index>
           <template id="desk-essay-row">
@@ -94,21 +100,28 @@ const moods = [...new Set(posts.map(({ data }) => data.mood))].sort();
                 description={data.description}
                 minutes={data.minutes}
                 mood={data.mood}
-                topic={names[0]}
-                filter={{ text: `${data.description} ${names.join(' ')} ${data.mood}`, topics: data.topics.map(({ id }) => id).join(' ') }}
+                topic={data.looseThread ? 'Short note' : names[0]}
+                filter={{ text: `${data.description} ${names.join(' ')} ${data.mood}`, topics: data.topics.map(({ id }) => id).join(' '), kind: data.looseThread ? 'note' : undefined }}
               />
             );
           })}
         </ul>
         <p class="archive__empty" data-no-results hidden>Nothing in this stack. Try a wider search.</p>
-        <p class="archive__search-notice" data-search-notice hidden>The essay text couldn’t load. You can still search titles, summaries, and topics.</p>
+        <p class="archive__search-notice" data-search-notice hidden>The full text couldn’t load. You can still search titles, summaries, and topics.</p>
         <p class="archive__search-notice" data-feeling-notice hidden>I couldn’t see the reader feelings. The other filters still work.</p>
       </section>
+      <div class="archive__extras">
+        <RelatedReading posts={posts} />
+        <ArchiveQuestions />
+      </div>
     </div>
   </div>
 </Base>
 
 <style>
+  .writing { max-inline-size: 62rem; padding-block: clamp(2rem, 5vw, 4rem) 0; }
+  .writing .discovery__header { padding-block-end: clamp(1rem, 2.8vw, 1.75rem); }
+
   .archive__search-notice, .archive :global(.archive__excerpt) {
     color: var(--muted);
     font-size: .9rem;

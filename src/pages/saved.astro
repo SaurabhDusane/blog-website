@@ -16,7 +16,7 @@ const posts = await getPosts();
       <p>Essays you’ve set aside, quotes you’ve kept, and places you’ve left off. This shelf stays on this device.</p>
     </header>
 
-    <noscript><p>Enable JavaScript to open this device’s saved essays and quotes. You can still <a href="/explore/">browse the index</a>.</p></noscript>
+    <noscript><p>Enable JavaScript to open this device’s saved essays and quotes. You can still <a href="/explore/">browse the essays</a>.</p></noscript>
     <div class="saved-page__shelves" data-library-shelves hidden>
       <section aria-labelledby="bookmarks-heading">
         <header class="index-heading">
@@ -33,7 +33,7 @@ const posts = await getPosts();
           <p data-recent-count></p>
         </header>
         <ul class="essay-index" data-recent role="list"></ul>
-        <p class="saved-page__empty" data-recent-empty hidden>Your reading trail starts with the <a href="/start/">first essay</a>.</p>
+        <p class="saved-page__empty" data-recent-empty hidden><a href="/explore/">Browse essays</a> to start a reading trail.</p>
       </section>
 
       <section class="saved-page__quote-shelf" aria-labelledby="quote-heading">

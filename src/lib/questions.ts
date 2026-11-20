@@ -3,8 +3,8 @@ import { getPosts, postRedirects } from './content';
 
 export const questionPath = ({ id }: CollectionEntry<'questions'>) => `/questions/${id}/`;
 
-export async function questionEntries() {
-  const [questions, posts] = await Promise.all([getCollection('questions'), getPosts()]);
+export async function questionEntries(published?: CollectionEntry<'posts'>[]) {
+  const [questions, posts] = await Promise.all([getCollection('questions'), published ?? getPosts()]);
   const byId = new Map(posts.map((post) => [post.id, post]));
   const aliases = postRedirects(posts);
   return questions.map((question) => {
@@ -15,6 +15,7 @@ export async function questionEntries() {
       seen.add(target.id);
       return [{ post: target, addedAt, note }];
     });
-    return { question, entries };
+    const discoverable = entries.filter(({ post }) => !post.data.looseThread).length >= 2;
+    return { question, entries, discoverable };
   });
 }

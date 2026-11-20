@@ -33,7 +33,7 @@ function renderedPassages(html: string) {
 // Passage IDs are assigned in the same order as the reader. Render the prose so
 // MDX components, document markup and heading IDs match the published article.
 export const GET: APIRoute = async () => {
-  const posts = (await getPosts()).filter(({ data }) => !data.looseThread);
+  const posts = await getPosts();
   const container = await AstroContainer.create();
   container.addServerRenderer({ renderer: mdxRenderer });
   const entries = await Promise.all(posts.map(async (post) => {

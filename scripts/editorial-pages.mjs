@@ -55,7 +55,7 @@ function feed(request, asset, rows, path) {
 
 function archiveRows(page, rows, collection) {
   const template = /<template\b[^>]*\bid="desk-essay-row"[^>]*>([\s\S]*?)<\/template>/;
-  const count = /(<p\b[^>]*\bdata-result-count\b[^>]*>)(\d+) essays?(<\/p>)/;
+  const count = /(<p\b[^>]*\bdata-result-count\b[^>]*>)(\d+) (essay|note|piece)s?(<\/p>)/;
   if (!template.test(page)) return page;
   const rendered = page.replace(template, (_match, html) => rows.map(({ slug, title, description, body, mood = 'reflective', topics = [] }) => {
     const minutes = Math.max(1, Math.ceil(body.trim().split(/\s+/).length / 220));
@@ -67,9 +67,10 @@ function archiveRows(page, rows, collection) {
     ));
   }).join(''));
   if (collection) return rendered.replace(/<p\b[^>]*\bdata-desk-essay-empty\b[^>]*>[^<]*<\/p>/, '');
-  return rendered.replace(count, (_match, start, base, end) => {
+  return rendered.replace(count, (_match, start, base, label, end) => {
     const total = Number(base) + rows.length;
-    return `${start}${total} ${total === 1 ? 'essay' : 'essays'}${end}`;
+    const noun = label === 'essay' ? 'essay' : 'piece';
+    return `${start}${total} ${noun}${total === 1 ? '' : 's'}${end}`;
   });
 }
 

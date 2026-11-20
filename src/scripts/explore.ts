@@ -14,6 +14,7 @@ type Essay = {
   topics: string[];
   length: string;
   mood: string;
+  kind: 'essay' | 'note';
 };
 
 function collectEssay(element: HTMLElement): Essay[] {
@@ -36,6 +37,7 @@ function collectEssay(element: HTMLElement): Essay[] {
     topics: (element.dataset.topics ?? '').split(' '),
     length: minutes <= 5 ? 'quick' : minutes <= 10 ? 'steady' : 'long',
     mood: element.dataset.mood ?? '',
+    kind: element.dataset.kind === 'note' ? 'note' : 'essay',
   }];
 }
 
@@ -60,6 +62,11 @@ function initExplore() {
   const fields = [...form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input[name], select[name]')];
   const search = form.querySelector<HTMLInputElement>('input[name="q"]');
   const essays = [...list.querySelectorAll<HTMLElement>('[data-result]')].flatMap(collectEssay);
+  const advanced = form.querySelector<HTMLDetailsElement>('[data-archive-filters]');
+  const formatFilter = form.querySelector<HTMLElement>('[data-format-filter]');
+  const topicFilter = form.querySelector<HTMLElement>('[data-topic-filter]');
+  const hasNotes = essays.some(({ kind }) => kind === 'note');
+  const hasTopics = essays.some(({ topics }) => topics.some(Boolean));
   let archive: Map<string, SearchPassage[]> | undefined;
   let archiveState: 'idle' | 'loading' | 'ready' | 'unavailable' = 'idle';
   let postFeelings: MoodWeather['byPost'] | undefined;
@@ -77,6 +84,9 @@ function initExplore() {
     const time = String(filters.get('time') ?? '');
     const mood = String(filters.get('mood') ?? '');
     const feeling = feelings.find(({ id }) => id === filters.get('feeling'))?.id;
+    const format = String(filters.get('kind') ?? '');
+    if (formatFilter) formatFilter.hidden = !hasNotes && !format;
+    if (topicFilter) topicFilter.hidden = !hasTopics && !topic;
     if (terms.length > 0 && archiveState === 'idle') {
       archiveState = 'loading';
       void fetchArchive().then((loaded) => {
@@ -102,8 +112,10 @@ function initExplore() {
     }
 
     let matches = 0;
+    let notes = 0;
     const ranked = essays.map((essay) => {
       const qualifies = (!topic || essay.topics.includes(topic))
+        && (!format || format === `${essay.kind}s`)
         && (!time || essay.length === time)
         && (!mood || mood === essay.mood)
         && (!feeling || !postFeelings || feelingCount(postFeelings[essay.postId] ?? {}, feeling) > 0);
@@ -114,7 +126,10 @@ function initExplore() {
       essay.element.hidden = result === null;
       essay.excerpt.hidden = !result?.excerpt;
       if (result?.excerpt) essay.excerpt.replaceChildren(renderExcerpt(result.excerpt, terms));
-      if (result) matches += 1;
+      if (result) {
+        matches += 1;
+        if (essay.kind === 'note') notes += 1;
+      }
       return { element: essay.element, score: result?.score ?? -1 };
     }).sort((first, second) => second.score - first.score);
 
@@ -125,7 +140,8 @@ function initExplore() {
     }
 
     const pending = (terms.length > 0 && archiveState === 'loading') || (!!feeling && feelingState === 'loading');
-    const status = pending ? 'Looking through the essays…' : `${matches} ${matches === 1 ? 'essay' : 'essays'}`;
+    const noun = format === 'notes' || (notes > 0 && notes === matches) ? 'note' : notes > 0 ? 'piece' : 'essay';
+    const status = pending ? 'Looking through the archive…' : `${matches} ${noun}${matches === 1 ? '' : 's'}`;
     if (count.textContent !== status) count.textContent = status;
     empty.hidden = matches !== 0 || pending;
     empty.textContent = feeling
@@ -133,7 +149,7 @@ function initExplore() {
       : 'Nothing in this stack. Try a wider search.';
     notice.hidden = terms.length === 0 || archiveState !== 'unavailable';
     feelingNotice.hidden = !feeling || feelingState !== 'unavailable';
-    clear.hidden = !query && !topic && !time && !mood && !feeling;
+    clear.hidden = !query && !topic && !time && !mood && !feeling && !format;
     if (!pending && reportResults) {
       track('explore', { results: matches, searched: Boolean(query) });
       reportResults = false;
@@ -147,6 +163,7 @@ function initExplore() {
       field.value = field === search ? value.slice(0, search.maxLength) : value;
       if (field instanceof HTMLSelectElement && field.selectedIndex === -1) field.value = '';
     }
+    if (advanced && fields.some((field) => advanced.contains(field) && field.value)) advanced.open = true;
     showResults();
   };
 
@@ -196,6 +213,7 @@ function initExplore() {
     readUrl();
   });
   readUrl();
+  form.hidden = false;
 }
 
 initExplore();

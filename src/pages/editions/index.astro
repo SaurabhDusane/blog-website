@@ -1,16 +1,14 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getPosts } from '../../lib/content';
-import { editionDate, editionEssays, editionPath, getEditions } from '../../lib/editions';
+import { editionDate, editionEntries, editionPath } from '../../lib/editions';
 
-const [editions, posts] = await Promise.all([getEditions(), getPosts()]);
-const entries = editions.map((edition) => ({ edition, essays: editionEssays(edition, posts) }));
+const entries = (await editionEntries()).filter(({ discoverable }) => discoverable);
 ---
 
-<Base title="Reading editions" description="A few Second Ink essays chosen to read in order.">
+<Base title="Reading editions" description="A few Second Ink essays chosen to read in order." noindex={entries.length === 0}>
   <section class="wrap interior editions-index">
     <h1>Reading editions</h1>
-    <p class="lead">Each edition gathers a few essays around a single question and gives you an order to read them in.</p>
+    <p class="lead">In each edition, I choose a few essays to read in a particular order.</p>
     {entries.length ? <ul class="editorial-list" role="list">
       {entries.map(({ edition, essays }) => (
         <li class="edition-entry">
@@ -24,7 +22,7 @@ const entries = editions.map((edition) => ({ edition, essays: editionEssays(edit
           </div>
         </li>
       ))}
-    </ul> : <p>The first edition is still on the desk.</p>}
+    </ul> : <p>I’ll put together a reading edition when I have essays worth pairing. <a class="text-link" href="/explore/">Browse my essays</a></p>}
   </section>
 </Base>
 
