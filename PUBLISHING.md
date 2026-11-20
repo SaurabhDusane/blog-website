@@ -27,6 +27,8 @@ For a short thought, upload to `posts/threads/`. You can also add optional conne
 
 ## What to do if a post doesn’t show up
 
+The **Document conversion** summary in GitHub Actions shows the topics and mood applied to each published upload. It labels your supplied metadata and shows the confidence of automatic assignments. **Unassigned** means the sorter found too little evidence for a topic. The same report appears in the build log and at `.data/document-import-report.txt` when you build locally.
+
 - Open the latest build in Netlify and look for the file in **Document conversion report**. The report explains drafts, future publication dates, removals, and conversion problems.
 - If it’s a scan, export a PDF with selectable text and upload it again. Image-only PDFs are skipped, and OCR is disabled. If a file is protected or damaged, export an unlocked copy.
 - If GitHub rejects the upload, keep each file at or below **25 MiB** for browser uploads. The importer itself accepts up to **40 MiB**. [GitHub upload limits](https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository)

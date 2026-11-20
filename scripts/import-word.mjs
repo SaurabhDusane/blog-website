@@ -362,10 +362,12 @@ function renderDocument(source, prepared, converted, authorIds, paths, sourceIds
   for (const name of (metadata.tags ?? '').split(',').map((value) => value.trim()).filter(Boolean)) {
     tags.set(slugify(name).slice(0, 80).replace(/-$/, '') || 'tag-' + digest(name).slice(0, 10), shorten(name, 64));
   }
+  const providedTopics = tags.size > 0;
   const title = shorten(rawTitle, 180);
   const originalSource = sourceUrl(metadata['source-url'] ?? metadata.source);
   const archive = sourceUrl(metadata['archive-url']);
   const mood = metadata.mood?.toLowerCase();
+  const providedMood = moods.has(mood);
   const selectedAuthor = slugify(metadata.author ?? '');
   const author = authorIds.has(selectedAuthor) ? selectedAuthor : [...authorIds].sort()[0];
   const count = passages.reduce((total, text) => (
@@ -373,10 +375,18 @@ function renderDocument(source, prepared, converted, authorIds, paths, sourceIds
   ), 0);
   const firstParagraph = fragment.childNodes.find((node) => node.tagName === 'p' && cleanText(node));
   const description = excerpt(metadata.summary || (firstParagraph && cleanText(firstParagraph)) || passages[0] || title);
-  const sorting = !tags.size || !moods.has(mood) ? sortEssay({ title, description, body: passages.join('\n') }) : undefined;
-  if (!tags.size) {
+  const sorting = !providedTopics || !providedMood ? sortEssay({ title, description, body: passages.join('\n') }) : undefined;
+  if (!providedTopics) {
     for (const id of sorting?.topics ?? []) tags.set(id, essayTopics[id]);
   }
+  const assignedMood = providedMood ? mood : sorting.mood;
+  const classification = {
+    topics: { labels: [...tags].map(([id, name]) => essayTopics[id] ?? name),
+      source: providedTopics ? 'author' : tags.size ? 'automatic' : 'unassigned',
+      confidence: providedTopics ? undefined : sorting.confidence.topics },
+    mood: { label: assignedMood, source: providedMood ? 'author' : 'automatic',
+      confidence: providedMood ? undefined : sorting.confidence.mood },
+  };
   const warnings = [...converted.warnings];
   if (rawTitle.length > 180) warnings.push('The title was shortened to fit the reading desk.');
   if (!slugify(title)) warnings.push('The title uses characters that need a short generated URL.');
@@ -384,7 +394,7 @@ function renderDocument(source, prepared, converted, authorIds, paths, sourceIds
   if ((metadata['source-url'] || metadata.source) && !originalSource) warnings.push('Source-url must be an absolute HTTP(S) URL.');
   if (metadata['archive-url'] && !archive) warnings.push('Archive-url must be an absolute HTTP(S) URL.');
   if (metadata.author && !authorIds.has(selectedAuthor)) warnings.push('The author did not match a profile, so the default author was used.');
-  if (mood && !moods.has(mood)) warnings.push('Mood must be reflective, practical, or curious.');
+  if (mood && !providedMood) warnings.push('Mood must be reflective, practical, or curious.');
   const readingPaths = [...new Set((metadata['reading-paths'] ?? metadata.series ?? '').split(',').map((value) => slugify(value)).filter(Boolean))]
     .filter((id) => {
       if (paths.has(id)) return true;
@@ -404,14 +414,14 @@ function renderDocument(source, prepared, converted, authorIds, paths, sourceIds
   if (looseThread && followUp && !postId.test(followUp)) warnings.push('Follow-up needs the slug of a published essay.');
 
   return {
-    files, tags: [...tags], warnings, html,
+    files, tags: [...tags], warnings, html, classification,
     data: {
       title,
       description,
       author,
       topics: [...tags.keys()],
       readingPaths,
-      mood: moods.has(mood) ? mood : sorting?.mood ?? 'reflective',
+      mood: assignedMood,
       minutes: Math.max(1, Math.ceil(count / 220)),
       sourceTitle: metadata['source-title'] ? shorten(metadata['source-title'], 180) : undefined,
       sourceAuthor: metadata['source-author'] ? shorten(metadata['source-author'], 120) : undefined,
@@ -472,10 +482,25 @@ for (const directory of [imagesDirectory, pdfDirectory]) {
 
 function note(source, status, reason, details = {}) {
   const clean = (value) => String(value).replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 500);
+  const { classification, ...rest } = details;
   records.push({
-    path: clean(source.path), status, reason: clean(reason), ...details,
+    path: clean(source.path), status, reason: clean(reason), ...rest,
+    classification: classification && {
+      topics: { ...classification.topics, labels: classification.topics.labels.map(clean).filter(Boolean) },
+      mood: classification.mood,
+    },
     warnings: (details.warnings ?? []).map(clean).filter(Boolean).slice(0, 12),
   });
+}
+
+function reportClassification(classification) {
+  if (!classification) return [];
+  const { topics, mood } = classification;
+  const origin = ({ source, confidence }) => source === 'author' ? 'from your metadata' : `automatic, ${confidence} confidence`;
+  return [
+    topics.labels.length ? `  Topics · ${topics.labels.join(', ')} (${origin(topics)})` : '  Topics · Unassigned (insufficient evidence)',
+    `  Mood · ${mood.label.charAt(0).toUpperCase()}${mood.label.slice(1)} (${origin(mood)})`,
+  ];
 }
 
 function identify(source, hash) {
@@ -610,7 +635,8 @@ for (const source of sources) {
     const reason = hidden ? 'Available for private review.' : updated ? 'The new version kept its original URL.'
       : existing && existing.path !== source.path ? 'The renamed file kept its original URL.'
         : existing ? 'The published version is current.' : 'Ready at /posts/' + slug + '/.';
-    note(source, status, reason, { slug, conversion: cached ? 'cached' : 'converted', warnings: post.warnings });
+    note(source, status, reason, { slug, conversion: cached ? 'cached' : 'converted', warnings: post.warnings,
+      classification: hidden ? undefined : post.classification });
   } catch (error) {
     let preserved = false;
     if (existing?.snapshot && visibility === 'published' && !reservedPosts.has(existing.slug)) {
@@ -646,8 +672,9 @@ if (!preview) {
 }
 const reportText = [
   'Document conversion report',
-  ...records.flatMap(({ path, status, reason, warnings }) => [
+  ...records.flatMap(({ path, status, reason, classification, warnings }) => [
     status.charAt(0).toUpperCase() + status.slice(1) + ' — ' + path + ' · ' + reason,
+    ...reportClassification(classification),
     ...warnings.map((warning) => '  Check: ' + warning),
   ]),
   '',
