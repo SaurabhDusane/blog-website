@@ -26,7 +26,8 @@ const socialImage = new URL(image, Astro.site ?? Astro.url);
 const path = Astro.url.pathname;
 const preview = draftsEnabled();
 const nav = [
-  { href: '/explore/', label: 'Essays', active: /^\/(?:posts|topics|questions|loose-threads|editions|series|start)(?:\/|$)/.test(path) },
+  { href: '/explore/', label: 'Essays', active: /^\/(?:posts|topics|loose-threads|editions|series|start)(?:\/|$)/.test(path) },
+  { href: '/questions/', label: 'Questions' },
   { href: journalAuthorPath, label: 'About me', active: path === '/about/' },
   preview ? { href: '/drafts/', label: 'Drafts' } : { href: '/saved/', label: 'Saved' },
 ];
