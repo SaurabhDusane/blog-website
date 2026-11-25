@@ -3,7 +3,8 @@
   --reader-margin: 13rem;
   --reader-gap: clamp(2rem, 5vw, 4.25rem);
   --reader-type: 1.25rem;
-  --reader-sticky-top: 3px;
+  --reader-sticky-top: calc(3px + env(safe-area-inset-top, 0px));
+  --reader-anchor-space: calc(var(--reader-sticky-top) + 6.5rem);
 }
 
 .reader[data-size="small"] {
@@ -21,7 +22,7 @@
 .reader-progress {
   position: fixed;
   z-index: 30;
-  inset: 0 0 auto;
+  inset: env(safe-area-inset-top, 0px) 0 auto;
   height: 3px;
   background: var(--line);
   pointer-events: none;
@@ -199,6 +200,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
+  min-inline-size: 2.75rem;
   min-height: 2.75rem;
   padding: 0;
   border: 0;
@@ -282,7 +284,9 @@
   z-index: 1;
   display: grid;
   gap: 1.05rem;
-  min-inline-size: min(18rem, calc(100vw - 3rem));
+  inline-size: min(18rem, calc(100% - 2 * var(--inset)));
+  max-block-size: calc(100dvh - var(--reader-anchor-space) - env(safe-area-inset-bottom, 0px));
+  overflow: auto;
   padding: 1rem;
   border: 1px solid var(--line);
   background: var(--paper);
@@ -350,7 +354,7 @@
 .reader-outline li[data-depth='3'] { margin-inline-start: .85em; }
 .reader-outline li:is([data-depth='4'], [data-depth='5'], [data-depth='6']) { margin-inline-start: 1.7em; }
 .reader-outline a { display: inline-flex; align-items: center; min-height: 1.65rem; }
-.reader-prose :is(h2, h3, h4, h5, h6)[id] { scroll-margin-block-start: calc(var(--reader-sticky-top) + 6.5rem); }
+.reader-prose :is(h2, h3, h4, h5, h6)[id] { scroll-margin-block-start: var(--reader-anchor-space); }
 
 .reader-prose {
   display: flow-root;
@@ -434,7 +438,7 @@
 }
 
 .reader-prose > [id] {
-  scroll-margin-top: 6.5rem;
+  scroll-margin-block-start: var(--reader-anchor-space);
 }
 
 .reader-prose ::selection {
@@ -495,7 +499,7 @@
   min-inline-size: 1.5rem;
   min-block-size: 1.5rem;
   font: 600 .72rem/1 var(--font-ui);
-  scroll-margin-block-start: calc(var(--reader-sticky-top) + 6.5rem);
+  scroll-margin-block-start: var(--reader-anchor-space);
 }
 
 html[data-quiet-reading] :is(.site-header, .site-footer) {
@@ -539,7 +543,7 @@ html[data-quiet-reading] :is(.site-header, .site-footer) {
 }
 
 .reader-end-details summary {
-  min-height: 2.25rem;
+  min-height: 2.75rem;
   padding-block: 0.45rem;
   cursor: pointer;
 }
@@ -694,6 +698,20 @@ html[data-quiet-reading] :is(.site-header, .site-footer) {
 @media (max-width: 25rem) {
   .reader-selection:not([hidden]) + .reader-status:not(:empty) {
     bottom: calc(7.25rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 23rem) {
+  .reader-controls,
+  .reader-controls__access,
+  .reader-controls__tools {
+    column-gap: 0.5rem;
+  }
+}
+
+@media (pointer: coarse) {
+  .reader-outline a {
+    min-block-size: 2.75rem;
   }
 }
 

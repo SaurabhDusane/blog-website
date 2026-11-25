@@ -13,6 +13,7 @@ import QuoteImageDialog from "../../components/QuoteImageDialog.astro";
 import ReaderConnections from "../../components/ReaderConnections.astro";
 import ReaderFeedback from "../../components/ReaderFeedback.astro";
 import ReaderFieldNotes from "../../components/ReaderFieldNotes.astro";
+import ReaderHandoff from "../../components/ReaderHandoff.astro";
 import ReaderListen from "../../components/ReaderListen.astro";
 import ReaderRevisions from "../../components/ReaderRevisions.astro";
 import ReaderVoiceNote from "../../components/ReaderVoiceNote.astro";
@@ -150,6 +151,9 @@ const email = [import.meta.env.PUBLIC_AUTHOR_EMAIL, author.data.email]
                       <button type="button" data-reader-theme="auto" aria-pressed="false">Auto</button>
                     </div>
                   </div>
+                  {!isPreview && !isDraft && <div class="reader-settings__group">
+                    <button type="button" class="reader-control text-link" data-reader-handoff-open aria-haspopup="dialog" hidden>Continue on another device</button>
+                  </div>}
                 </div>
               </details>
               <button type="button" class="reader-control" data-reader-action="quiet" aria-pressed="false">Quiet mode</button>
@@ -266,6 +270,7 @@ const email = [import.meta.env.PUBLIC_AUTHOR_EMAIL, author.data.email]
         <button type="button" data-reader-action="dismiss-selection" aria-label="Dismiss quote controls">×</button>
       </div>
       <p class="reader-status" data-reader-status role="status" aria-atomic="true"></p>
+      {!isPreview && !isDraft && <ReaderHandoff />}
       <CopyTextDialog id="reader-copy" />
       <QuoteImageDialog id="reader-quote-image" />
       {!isPreview && <FinishedNote postId={post.id} />}

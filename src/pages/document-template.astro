@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import ReaderHandoff from '../components/ReaderHandoff.astro';
 import ReaderVoiceNote from '../components/ReaderVoiceNote.astro';
 import RevisitEssay from '../components/RevisitEssay.astro';
 import { getJournalAuthor } from '../lib/content';
@@ -26,15 +27,24 @@ const author = await getJournalAuthor();
       <ReaderVoiceNote postId="DESK-SLUG" />
       <RevisitEssay postId="DESK-SLUG" title="DESK-TITLE" minutes="DESK-MINUTES" />
     </header>
-    <article class="reader-article wrap" aria-labelledby="reader-title">
-      <Fragment set:html={'DESK-DOCUMENT'} />
-      <div class="reader-prose" data-desk-prose><Fragment set:html={'DESK-PROSE'} /></div>
-    </article>
+    <div class="reader-sticky-scope">
+      <div class="reader-controls-outer" data-desk-handoff-bar hidden>
+        <div class="reader-controls wrap">
+          <button type="button" class="reader-control text-link" data-reader-handoff-open aria-haspopup="dialog" hidden>Continue on another device</button>
+        </div>
+      </div>
+      <article class="reader-article wrap" aria-labelledby="reader-title">
+        <Fragment set:html={'DESK-DOCUMENT'} />
+        <div class="reader-prose" data-desk-prose><Fragment set:html={'DESK-PROSE'} /></div>
+      </article>
+    </div>
+    <ReaderHandoff />
   </div>
 </Base>
 
 <script>
   import { readLibrary, recordReading } from '../lib/reader-state';
+  import { initReaderHandoff } from '../scripts/reader-handoff';
   import { trackReadership } from '../scripts/reader-readership';
 
   const essay = document.querySelector<HTMLElement>('[data-desk-essay]');
@@ -43,7 +53,22 @@ const author = await getJournalAuthor();
   const progress = essay?.querySelector<HTMLElement>('.reader-progress');
   const fill = progress?.querySelector<HTMLElement>('.reader-progress__fill');
   const prose = essay?.querySelector<HTMLElement>('[data-desk-prose]');
-  if (postId && progress && fill && prose) {
+  if (essay && postId && progress && fill && prose) {
+    const passages = [...prose.querySelectorAll<HTMLElement>(':scope > [id]')];
+    const bar = essay.querySelector<HTMLElement>('[data-desk-handoff-bar]');
+    const title = essay.querySelector('h1')?.textContent;
+    if (passages.length && bar && title) {
+      const controller = new AbortController();
+      initReaderHandoff(essay, title, () => {
+        const readingLine = Math.min(window.innerHeight * .33, 250);
+        const passage = passages.findLast((entry) => entry.getBoundingClientRect().top <= readingLine) ?? passages[0];
+        const url = new URL(location.pathname, location.origin);
+        url.hash = passage.id;
+        return url.href;
+      }, controller.signal);
+      bar.hidden = !!bar.querySelector('[data-reader-handoff-open][hidden]');
+      document.addEventListener('astro:before-swap', () => controller.abort(), { once: true });
+    }
     const prior = readLibrary().history[postId];
     let lastSaved = prior?.progress ?? 0;
     let pending = lastSaved;
@@ -74,7 +99,7 @@ const author = await getJournalAuthor();
     progress.hidden = false;
     measure();
 
-    if (new URLSearchParams(location.search).get('resume') === '1' && prior && prior.progress > 0 && prior.progress < 100 && !prior.completed) {
+    if (!location.hash && new URLSearchParams(location.search).get('resume') === '1' && prior && prior.progress > 0 && prior.progress < 100 && !prior.completed) {
       window.requestAnimationFrame(() => {
         const { top, height } = prose.getBoundingClientRect();
         window.scrollTo({ top: window.scrollY + top + height * prior.progress / 100 - window.innerHeight * .67 });
@@ -84,7 +109,11 @@ const author = await getJournalAuthor();
 </script>
 
 <style>
-  .desk-essay { padding-block-end: clamp(3rem, 8vw, 6rem); }
+  .desk-essay {
+    --reader-anchor-space: calc(var(--reader-sticky-top) + 3.75rem);
+    padding-block-end: clamp(3rem, 8vw, 6rem);
+  }
   .desk-essay .reader-header { margin-block-end: clamp(1rem, 4vw, 2.5rem); }
   .desk-essay :global(.desk-essay__original) { margin: 0 auto 1.5rem; max-inline-size: 68ch; }
+  .desk-essay .reader-prose :global([id]) { scroll-margin-block-start: var(--reader-anchor-space); }
 </style>

@@ -1,0 +1,55 @@
+<dialog class="reader-handoff" aria-labelledby="reader-handoff-title" data-reader-handoff>
+  <h2 id="reader-handoff-title">Continue on another device</h2>
+  <p>Send this link to yourself to open the essay at your current passage.</p>
+  <label for="reader-handoff-link">Link to this passage</label>
+  <textarea id="reader-handoff-link" rows="2" readonly></textarea>
+  <div class="reader-handoff__actions">
+    <button type="button" class="button" data-reader-handoff-copy autofocus>Copy link</button>
+    <button type="button" class="button" data-reader-handoff-share hidden>Share link</button>
+    <form method="dialog"><button type="submit" class="text-link">Close</button></form>
+  </div>
+  <p class="reader-handoff__status" role="status"></p>
+</dialog>
+
+<style>
+  .reader-handoff {
+    inline-size: min(29rem, calc(100% - 2rem));
+    max-block-size: calc(100% - 2rem);
+    overflow-y: auto;
+    padding: clamp(1rem, 4vw, 1.6rem);
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-ui);
+  }
+
+  .reader-handoff::backdrop { background: rgba(20, 23, 30, 0.5); }
+  .reader-handoff h2 { margin: 0; font: 400 clamp(1.85rem, 5vw, 2.3rem)/1.05 var(--font-display); }
+  .reader-handoff p { margin-block: .65rem 1rem; color: var(--muted); }
+  .reader-handoff label { display: block; margin-block-end: .35rem; font-weight: 600; }
+  .reader-handoff textarea {
+    display: block;
+    inline-size: 100%;
+    padding: .6rem;
+    border: 1px solid var(--line);
+    border-radius: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 1rem/1.4 var(--font-ui);
+    overflow-wrap: anywhere;
+    resize: vertical;
+  }
+
+  .reader-handoff__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .45rem .75rem;
+    margin-block-start: .8rem;
+  }
+
+  .reader-handoff__actions button { min-block-size: 2.75rem; }
+  .reader-handoff__actions form { margin-inline-start: auto; }
+  .reader-handoff .reader-handoff__status { margin: 0; }
+  .reader-handoff__status:not(:empty) { padding-block-start: .65rem; }
+</style>

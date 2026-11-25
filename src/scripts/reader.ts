@@ -4,6 +4,7 @@ import { copyText } from "../lib/clipboard";
 import { createQuoteImageDialog } from "../lib/quote-image";
 import { passageAnchor, passageTags } from "../lib/article-passages";
 import { readerApi } from "../lib/reader-api";
+import { initReaderHandoff } from "./reader-handoff";
 import { initReaderListen } from "./reader-listen";
 import { trackReadership } from "./reader-readership";
 
@@ -346,6 +347,10 @@ function setupReader(reader: HTMLElement, prose: HTMLElement, postId: string, ti
     const url = new URL(window.location.pathname, window.location.origin);
     if (anchor) url.hash = anchor;
     return url.toString();
+  }
+
+  if (passages.length) {
+    initReaderHandoff(reader, title, () => quoteUrl(currentPassage()?.id ?? passages[0].id), signal);
   }
 
   function updateSelection() {
