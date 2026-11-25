@@ -1,5 +1,8 @@
 import {
+  exportSavedLibrary,
+  importSavedLibrary,
   libraryChangeEvent,
+  libraryFileLimit,
   libraryKey,
   readLibrary,
   readSavedQuotes,
@@ -29,6 +32,39 @@ function initSaved() {
   const status = shelves?.querySelector<HTMLElement>('[data-library-status]');
   if (!page || !shelves || !bookmarks || !recent || !quotes || !bookmarkHeading || !quoteHeading || !quoteTemplate || !status) return;
   const makeQuoteImage = createQuoteImageDialog(page.querySelector<HTMLDialogElement>('[data-quote-image-dialog]'));
+
+  const transfer = page.querySelector<HTMLFormElement>('[data-library-import]');
+  const transferStatus = page.querySelector<HTMLElement>('[data-library-transfer-status]');
+  const fileInput = transfer?.querySelector<HTMLInputElement>('input[type="file"]');
+  const importButton = transfer?.querySelector<HTMLButtonElement>('button[type="submit"]');
+  const exportButton = page.querySelector<HTMLButtonElement>('[data-library-export]');
+  if (transfer && transferStatus && fileInput && importButton && exportButton) {
+    exportButton.addEventListener('click', () => {
+      const url = URL.createObjectURL(new Blob([exportSavedLibrary()], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'second-ink-saved.json';
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      transferStatus.textContent = 'Shelf file prepared.';
+    });
+    transfer.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const file = fileInput.files?.[0];
+      if (!file || file.size > libraryFileLimit) {
+        transferStatus.textContent = 'Choose a Second Ink shelf file under 10 MB.';
+        return;
+      }
+      importButton.disabled = true;
+      try {
+        const result = importSavedLibrary(await file.text());
+        transferStatus.textContent = result === 'merged' ? 'Shelf merged.' : result === 'invalid'
+          ? 'This file doesn’t match a Second Ink shelf.' : 'This browser couldn’t save the merged shelf.';
+        if (result === 'merged') transfer.reset();
+      } catch { transferStatus.textContent = 'This browser couldn’t read the selected file.'; }
+      finally { importButton.disabled = false; }
+    });
+  }
 
   const bookmarkRows = new Map([...page.querySelectorAll<HTMLTemplateElement>('[data-bookmark-row]')]
     .map((row) => [row.dataset.bookmarkRow, row]));

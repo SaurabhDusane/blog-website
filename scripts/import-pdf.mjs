@@ -3,7 +3,7 @@ import { Worker } from 'node:worker_threads';
 const maxPdfBytes = 40 * 1024 * 1024;
 const timeoutMs = 90_000;
 
-export async function convertPdf(buffer) {
+export async function convertPdf(buffer, { ocr } = {}) {
   if (!Buffer.isBuffer(buffer)) throw new TypeError('Expected PDF bytes in a Buffer.');
   if (buffer.byteLength > maxPdfBytes) {
     throw new Error('The PDF exceeds the 40 MB import limit.');
@@ -15,7 +15,7 @@ export async function convertPdf(buffer) {
   // Give an interrupted parser its own heap and leave the caller's input intact.
   const data = Uint8Array.from(buffer);
   const worker = new Worker(new URL('./pdf-worker.mjs', import.meta.url), {
-    workerData: data,
+    workerData: { data, ocr },
     transferList: [data.buffer],
     execArgv: [],
     resourceLimits: { maxOldGenerationSizeMb: 192, stackSizeMb: 4 },
@@ -24,7 +24,8 @@ export async function convertPdf(buffer) {
   let timer;
   try {
     const result = await new Promise((resolve, reject) => {
-      timer = setTimeout(() => reject(new Error('The PDF took more than 90 seconds to convert. Split it into smaller files.')), timeoutMs);
+      const limit = ocr ? 150_000 : timeoutMs;
+      timer = setTimeout(() => reject(new Error(`The PDF took more than ${limit / 1_000} seconds to convert. Split it into smaller files.`)), limit);
       worker.once('message', ({ value, error }) => {
         if (error) reject(new Error(error));
         else resolve(value);

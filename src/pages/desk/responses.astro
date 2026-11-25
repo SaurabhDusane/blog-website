@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import DeskFieldNotes from '../../components/DeskFieldNotes.astro';
+import DeskOperations from '../../components/DeskOperations.astro';
 import { feelings } from '../../lib/feelings';
 import { stances } from '../../lib/stances';
 import '../../styles/response-desk.css';
@@ -28,7 +29,11 @@ import '../../styles/response-desk.css';
     </form>
 
     <div data-desk-content hidden>
-      <p><a class="text-link" href="/desk/publishing/">Open the publishing desk</a></p>
+      <p class="response-desk__actions">
+        <a class="text-link" href="/desk/publishing/">Open the publishing desk</a>
+        <a class="text-link" href="/desk/newsletter/">Newsletter desk</a>
+      </p>
+      <DeskOperations />
       <div class="response-desk__toolbar">
         <label for="desk-post">Essay</label>
         <select id="desk-post" data-desk-post>
@@ -139,6 +144,12 @@ import '../../styles/response-desk.css';
       <section class="response-desk__inbox" aria-labelledby="desk-backup-heading">
         <h2 id="desk-backup-heading">Response backups</h2>
         <p><a class="text-link" href="/api/admin/export/" download>Download a fresh export</a></p>
+        <details>
+          <summary>Download a full recovery bundle</summary>
+          <p>Save a private copy of drafts, feedback, newsletter records, and their attached files.</p>
+          <p><a class="text-link" href="/api/admin/recovery/" download>Download recovery bundle</a></p>
+          <p>To test a restore into an isolated folder, run <code>node scripts/rehearse-recovery.mjs path/to/recovery-bundle.ndjson</code>.</p>
+        </details>
         <details data-desk-backups>
           <summary>Browse weekly copies</summary>
           <p role="status" data-backup-status></p>

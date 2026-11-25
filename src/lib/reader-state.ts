@@ -29,6 +29,7 @@ export const libraryKey = 'second-ink:library';
 export const libraryChangeEvent = 'second-ink:library-change';
 export const savedQuotesKey = 'second-ink:quotes';
 export const savedQuotesChangeEvent = 'second-ink:quotes-change';
+export const libraryFileLimit = 10 * 1024 * 1024;
 
 const emptyLibrary = (): Library => ({ saved: [], history: {}, revisits: {} });
 const essayId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -186,4 +187,99 @@ export function removeQuote(quote: SavedQuote): boolean {
 
   window.dispatchEvent(new Event(savedQuotesChangeEvent));
   return true;
+}
+
+const libraryFileFormat = 'second-ink-saved';
+
+export function exportSavedLibrary() {
+  return JSON.stringify({ format: libraryFileFormat, version: 1, library: readLibrary(), quotes: readSavedQuotes() }, null, 2);
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+}
+
+function decodeSavedLibrary(source: string): { library: Library; quotes: SavedQuote[] } | undefined {
+  if (source.length > libraryFileLimit) return;
+  let value: unknown;
+  try { value = JSON.parse(source); } catch { return; }
+  const file = record(value);
+  const library = record(file?.library);
+  const history = record(library?.history);
+  const revisits = record(library?.revisits);
+  const saved = library?.saved;
+  const quotes = file?.quotes;
+  if (file?.format !== libraryFileFormat || file.version !== 1 || !history || !revisits
+    || !Array.isArray(saved) || saved.some((id) => typeof id !== 'string' || !essayId.test(id)) || !Array.isArray(quotes)) return;
+
+  const nextHistory: Record<string, ReadingEntry> = Object.create(null);
+  for (const [id, value] of Object.entries(history)) {
+    const entry = record(value);
+    if (!essayId.test(id) || entry?.postId !== id || typeof entry.progress !== 'number'
+      || !Number.isFinite(entry.progress) || entry.progress < 0 || entry.progress > 100
+      || typeof entry.updatedAt !== 'number' || !Number.isFinite(entry.updatedAt) || entry.updatedAt < 0
+      || (entry.anchor !== undefined && typeof entry.anchor !== 'string')
+      || (entry.completed !== undefined && typeof entry.completed !== 'boolean')) return;
+    nextHistory[id] = { postId: id, progress: entry.progress, updatedAt: entry.updatedAt,
+      anchor: entry.anchor, completed: (entry.completed === true || entry.progress === 100) || undefined };
+  }
+
+  const nextSaved = new Set<string>(saved);
+  const nextRevisits: Record<string, RevisitNote> = Object.create(null);
+  for (const [id, value] of Object.entries(revisits)) {
+    const note = record(value);
+    if (!nextSaved.has(id) || typeof note?.text !== 'string' || !note.text.trim() || note.text.length > 800
+      || typeof note.title !== 'string' || !note.title.trim() || note.title.length > 250
+      || typeof note.minutes !== 'number' || !Number.isSafeInteger(note.minutes) || note.minutes <= 0) return;
+    nextRevisits[id] = { text: note.text, title: note.title, minutes: note.minutes };
+  }
+
+  const nextQuotes: SavedQuote[] = [];
+  for (const quote of quotes) {
+    if (!isSavedQuote(quote) || !essayId.test(quote.postId)) return;
+    nextQuotes.push({ postId: quote.postId, title: quote.title, text: quote.text, anchor: quote.anchor });
+  }
+  return { library: { saved: [...nextSaved], history: nextHistory, revisits: nextRevisits }, quotes: nextQuotes };
+}
+
+export function importSavedLibrary(source: string): 'merged' | 'invalid' | 'unavailable' {
+  const incoming = decodeSavedLibrary(source);
+  if (!incoming) return 'invalid';
+  if (typeof window === 'undefined') return 'unavailable';
+
+  const local = readLibrary();
+  const history = new Map(Object.entries(local.history));
+  for (const [id, entry] of Object.entries(incoming.library.history)) {
+    const existing = history.get(id);
+    const latest = !existing || existing.updatedAt < entry.updatedAt ? entry : existing;
+    history.set(id, { ...latest, completed: (existing?.completed === true || entry.completed === true) || undefined });
+  }
+  const next: Library = {
+    saved: [...new Set([...local.saved, ...incoming.library.saved])],
+    history: Object.fromEntries(history),
+    revisits: { ...incoming.library.revisits, ...local.revisits },
+  };
+  const quotes = new Map<string, SavedQuote>();
+  for (const quote of [...readSavedQuotes(), ...incoming.quotes]) {
+    const key = JSON.stringify([quote.postId, quote.anchor, quote.text]);
+    if (!quotes.has(key)) quotes.set(key, quote);
+  }
+
+  try {
+    const storage = window.localStorage;
+    const previous = storage.getItem(libraryKey);
+    storage.setItem(libraryKey, JSON.stringify(next));
+    try { storage.setItem(savedQuotesKey, JSON.stringify([...quotes.values()])); }
+    catch {
+      if (previous === null) storage.removeItem(libraryKey);
+      else storage.setItem(libraryKey, previous);
+      return 'unavailable';
+    }
+  } catch { return 'unavailable'; }
+
+  memory = next;
+  memoryIsNewer = false;
+  window.dispatchEvent(new Event(libraryChangeEvent));
+  window.dispatchEvent(new Event(savedQuotesChangeEvent));
+  return 'merged';
 }

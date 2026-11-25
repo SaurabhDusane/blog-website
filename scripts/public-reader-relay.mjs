@@ -4,6 +4,8 @@ const routes = new Map([
   ['reading', 'POST'], ['feedback', 'GET, POST'], ['stance', 'GET, POST'],
   ['reconsideration', 'GET, POST'], ['field-notes', 'GET, POST'],
   ['moods', 'GET'], ['reply', 'POST'],
+  ['readership', 'POST'],
+  ['newsletter', 'POST'], ['newsletter-confirm', 'POST'], ['newsletter-unsubscribe', 'POST'],
 ]);
 
 export const publicReaderPrefix = '/api/public-reader/';

@@ -35,7 +35,7 @@ const redirects = {
 
 function isIndexable(url) {
   const { pathname } = new URL(url);
-  if (pathname.startsWith('/desk/') || ['/saved/', '/offline/', '/under-the-blotter/', '/document-template/', '/early-reader/'].includes(pathname)) return false;
+  if (pathname.startsWith('/desk/') || ['/saved/', '/offline/', '/under-the-blotter/', '/document-template/', '/early-reader/', '/newsletter/manage/'].includes(pathname)) return false;
   if (redirectedPaths.has(pathname)) return false;
   if (buildDirectory && /^\/(?:questions|editions|loose-threads|start)(?:\/|$)/.test(pathname)) {
     const index = new URL(`.${pathname.replace(/\/$/, '')}/index.html`, buildDirectory);

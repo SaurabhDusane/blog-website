@@ -1,4 +1,5 @@
-type ReaderRoute = 'reading' | 'feedback' | 'field-notes' | 'stance' | 'reconsideration' | 'moods' | 'reply';
+type ReaderRoute = 'reading' | 'feedback' | 'field-notes' | 'stance' | 'reconsideration' | 'moods' | 'reply' | 'readership'
+  | 'newsletter' | 'newsletter-confirm' | 'newsletter-unsubscribe';
 
 const origin = import.meta.env.PUBLIC_READER_API_ORIGIN?.replace(/\/$/, '') ?? '';
 

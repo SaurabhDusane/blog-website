@@ -8,9 +8,9 @@ export const metadataFields = new Set([
   'title', 'date', 'tags', 'summary', 'status', 'publish-date', 'source-title', 'source-author',
   'source-url', 'source', 'why-i-picked-this', 'claim', 'claim-question', 'question', 'archive-url',
   'mood', 'author', 'update', 'reading-paths', 'series', 'connection', 'what-i-think-now', 'kind', 'follow-up',
-  'source-note', 'field-note-prompt',
+  'source-note', 'field-note-prompt', 'before-after', 'ocr', 'ocr-language',
 ]);
-export const repeatedMetadataFields = new Set(['update', 'connection', 'what-i-think-now', 'source-note']);
+export const repeatedMetadataFields = new Set(['update', 'connection', 'what-i-think-now', 'source-note', 'before-after']);
 
 export function metadataField(value) {
   const field = value.trim().toLowerCase().replace(/\s+/g, '-');
@@ -94,11 +94,14 @@ export async function readPdfMetadata(root, sidecars, label = 'PDF companion fil
 export async function readLabelCorrections(root, file) {
   if (!file) return {};
   const metadata = await readPdfMetadata(root, [file], 'label correction file');
-  const { tags, mood } = metadata;
+  const { tags, mood, title } = metadata;
   if (mood !== undefined && !['reflective', 'practical', 'curious'].includes(mood.toLowerCase())) {
     throw new Error('A corrected mood must be reflective, practical, or curious.');
   }
-  return { ...(tags !== undefined ? { tags } : {}), ...(mood !== undefined ? { mood } : {}) };
+  if (title !== undefined && (title.length > 180 || /[\r\n]/.test(title))) {
+    throw new Error('A corrected title must be a single line of up to 180 characters.');
+  }
+  return { ...(tags !== undefined ? { tags } : {}), ...(mood !== undefined ? { mood } : {}), ...(title !== undefined ? { title } : {}) };
 }
 
 export function committedDate(root, path) {

@@ -50,6 +50,16 @@ Save a draft in the owner’s desk. Open **Invite an early reader**, choose when
 
 The owner’s Site requires sign-in. To offer links to guests, configure a review endpoint on the public reader host. On the public host, set `SECOND_INK_REVIEW_UPSTREAM` to the HTTPS origin of the owner’s Site, `SECOND_INK_REVIEW_UPSTREAM_TOKEN` to its server-to-server credential, and `SECOND_INK_REVIEW_BRIDGE_SECRET` to a random 32-byte hex secret. Store the token and bridge secret as server secrets. On the owner’s Site, set the same bridge secret and set `SECOND_INK_REVIEW_ORIGIN` to the HTTPS origin of the guest host. Deploy both hosts with those settings and test an invitation before sharing it.
 
+## Review a public release
+
+- In the document conversion report, check the selected title and its source. Put `title` in the matching `.labels.yml` correction file to change the headline and keep its existing URL.
+- In the private publishing desk, **Find connections** suggests links backed by passages. Choose the connections you want and save the revision before publishing.
+- To send a saved browser essay through the same public build as repository uploads, configure the GitHub App values in `.env.example` on the owner host. Grant the installation access only to the publishing repository and give it Contents write access. Store the private key as a Site secret. Then use **Send to GitHub**. The desk also offers a Markdown download for manual publication.
+- For a scanned PDF, put the draft in `posts/drafts/` and set `ocr: review` in its YAML companion. Install Tesseract, set `SECOND_INK_ENABLE_OCR=1` and open a private document preview with `SECOND_INK_INCLUDE_DRAFTS=1`. Review the text against the scan before publishing a corrected text document.
+- A Word metadata line or PDF companion entry can publish a short comparison. Use `Before-after: YYYY-MM-DD | Title | Earlier excerpt | Later excerpt | Optional note` and include only text you want readers to see. For Markdown use `beforeAfter` entries with `date`, `title`, `earlier`, `later`, and an optional `note`.
+
+The live verification workflow checks the exact public deployment, archive search, and the reader response handshake. The response desk shows the latest successful check, a weekly aggregate readership summary, and a recovery bundle. Download the bundle there and run `node scripts/rehearse-recovery.mjs <bundle.ndjson>` to verify a restore in a new local directory.
+
 ## How the system works
 
 A plain document is enough. The title comes from its heading, first line, or filename. The publication date comes from `YYYY-MM-DD_title.docx` or the equivalent PDF name, then a `date` field, then the first Git commit. Later edits show an update date and keep the original publication date.

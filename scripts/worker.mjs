@@ -71,6 +71,7 @@ export function createWorker(assets, redirects = {}) {
         bucket: local?.bucket ?? env.BUCKET,
         env,
         catalog,
+        passages: () => JSON.parse(assets['/explore/index.json']?.body ?? '{}'),
         exists: (pathname) => Object.hasOwn(assets, pathname) || Object.hasOwn(redirects, pathname),
         ip: local?.ip ?? request.headers.get('CF-Connecting-IP'),
       };

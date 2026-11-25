@@ -221,7 +221,9 @@ The article and archive pages are pre-rendered. Explore searches titles, descrip
 
 The browser stores theme, text size, bookmarks, reading history, and saved quotes on the current device. To keep a line, highlight it in an essay and choose **Save quote**, or use **Save or share a quote** at the end. Open **Saved** to copy quotes, revisit their passages, or remove them. **Start here** and each reading path show which essays you’ve finished and link to the next one.
 
-Newsletter signup and private replies persist on the server. Locally, the database lives at `.data/second-ink.sqlite`. On Sites, the equivalent database is the production D1 binding `DB`. Read `newsletter_subscriptions` for opt-ins and `author_replies` for the private inbox. The site collects subscriptions and replies without sending email. To send a newsletter, connect an email provider or export the list into your mailing workflow.
+Newsletter requests and private replies persist in D1 on Sites and in `.data/second-ink.sqlite` locally. In **Newsletter** in the private desk, select published essays and review the exact email before sending a digest. Configure the Resend values in `.env.example` to enable confirmation and delivery. Only confirmed addresses receive digests. Addresses from the earlier signup form remain unconfirmed until their owners sign up and confirm. [Resend sender setup](https://resend.com/docs/dashboard/domains/introduction)
+
+**Saved** can export and import a library file with bookmarks, quotes, notes, and reading progress. The file transfers directly between browsers. **About me** displays an optional dated line from `onMyMind` in the author’s Markdown record. Add `date`, `text`, and an optional `link` and `linkLabel` to publish one.
 
 ### Extend the site
 

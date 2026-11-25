@@ -74,11 +74,29 @@ import '../../styles/reader.css';
                 <option value="practical">Practical</option><option value="curious">Curious</option>
               </select>
             </details>
+            <details class="publishing-desk__supplement">
+              <summary>Connect to other essays</summary>
+              <p class="publishing-desk__hint">Find an excerpt with shared wording. Save the draft when you’ve chosen the links and written a reason.</p>
+              <button type="button" class="text-link" data-desk-find-connections>Find connections</button>
+              <p class="publishing-desk__status" data-desk-connection-status role="status"></p>
+              <ul data-desk-suggested-connections hidden></ul>
+              <ul data-desk-approved-connections hidden></ul>
+            </details>
             <div class="publishing-desk__actions">
               <button type="submit" class="button">Save draft</button>
               <button type="button" class="button" data-desk-publish disabled>Publish saved draft</button>
               <a class="text-link" data-desk-live hidden>Open live essay</a>
             </div>
+            <details class="publishing-desk__supplement" data-desk-release-panel hidden>
+              <summary>Public release</summary>
+              <p class="publishing-desk__hint">Use a saved version. Its text and labels go into the public archive. The original upload stays on the desk.</p>
+              <p class="publishing-desk__hint" data-desk-release-help>Connect a publishing app to send directly, or place the downloaded Markdown in <code>src/content/posts/</code>.</p>
+              <div class="publishing-desk__actions">
+                <button type="button" class="button" data-desk-release hidden>Publish to public site</button>
+                <a class="text-link" data-desk-release-download>Download saved Markdown</a>
+                <a class="text-link" data-desk-release-live hidden>Open public essay</a>
+              </div>
+            </details>
             <p class="publishing-desk__status" data-desk-editor-status role="status" aria-atomic="true"></p>
           </form>
 
@@ -114,7 +132,7 @@ import '../../styles/reader.css';
             <button type="button" class="text-link" data-desk-history-next hidden>Older versions</button>
             <button type="button" class="text-link" data-desk-restore hidden>Restore this version</button>
             <a class="text-link" data-desk-original hidden>Download this original</a>
-            <button type="button" class="text-link" data-desk-withdraw hidden>Take the live essay down</button>
+            <button type="button" class="text-link" data-desk-withdraw hidden>Withdraw from this site</button>
           </div>
         </details>
         <EarlyReaderDesk />

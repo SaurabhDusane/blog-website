@@ -52,6 +52,13 @@ const posts = defineCollection({
     fieldNotePrompt: z.string().trim().min(1).max(240).optional(),
     sources: sourceAnnotations.optional(),
     updates: z.array(z.object({ date: z.coerce.date(), note: z.string().trim().min(1).max(600) })).default([]),
+    beforeAfter: z.array(z.object({
+      title: z.string().trim().min(1).max(110),
+      date: z.coerce.date(),
+      earlier: z.string().trim().min(1).max(1400),
+      later: z.string().trim().min(1).max(1400),
+      note: z.string().trim().min(1).max(600).optional(),
+    })).max(4).default([]),
     documentSource: z.object({
       format: z.enum(['docx', 'pdf']),
       filename: z.string().min(1),
@@ -96,6 +103,12 @@ const authors = defineCollection({
     role: z.string(),
     bio: z.string(),
     email: z.string().email().optional(),
+    onMyMind: z.object({
+      date: z.coerce.date(),
+      text: z.string().trim().min(1).max(320),
+      link: readingLink.optional(),
+      linkLabel: z.string().trim().min(1).max(100).optional(),
+    }).optional(),
     deskQuestions: z.array(z.object({
       post: simpleId,
       label: z.string().trim().min(1).max(55),

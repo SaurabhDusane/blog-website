@@ -1,6 +1,7 @@
 import { createFeedbackStorage } from './feedback-storage.mjs';
 import { createEditorialStorage } from './editorial-storage.mjs';
 import { createEarlyReaderStorage } from './early-reader-storage.mjs';
+import { createNewsletterStorage } from './newsletter-storage.mjs';
 import { insertReply, insertSubscription } from './submissions.mjs';
 
 export function createD1Storage(database) {
@@ -13,6 +14,7 @@ export function createD1Storage(database) {
     ...createFeedbackStorage(all, run),
     ...createEditorialStorage(all, run),
     ...createEarlyReaderStorage(all, run),
+    ...createNewsletterStorage(all, run),
     newsletter: (...values) => run(insertSubscription, ...values),
     reply: (...values) => run(insertReply, ...values),
   };

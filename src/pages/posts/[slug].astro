@@ -18,6 +18,7 @@ import ReaderRevisions from "../../components/ReaderRevisions.astro";
 import ReaderVoiceNote from "../../components/ReaderVoiceNote.astro";
 import RevisitEssay from "../../components/RevisitEssay.astro";
 import RevisitImpression from "../../components/RevisitImpression.astro";
+import ReadingComparison from "../../components/ReadingComparison.astro";
 import SourceCard from "../../components/SourceCard.astro";
 import { draftsEnabled, getDraftPosts, getJournalAuthor, getPosts, getRelatedPosts, getTopics, postPath, postRedirects } from "../../lib/content";
 import { journalAuthorPath } from "../../lib/journal-author.mjs";
@@ -123,6 +124,7 @@ const email = [import.meta.env.PUBLIC_AUTHOR_EMAIL, author.data.email]
     <div class="reader-take" id="reader-take" data-reader-take hidden={Boolean(beforeQuestion)} tabindex="-1">
       {beforeQuestion && <div class="wrap reader-take__intro"><p class="reader-deck">{description}</p></div>}
       <ReaderRevisions updates={updates} revisions={revisions} thoughtsNow={thoughtsNow} />
+      {post.data.beforeAfter.length > 0 && <ReadingComparison entries={post.data.beforeAfter} />}
       <div class="reader-sticky-scope">
         <div class="reader-controls-outer" data-reader-controls inert>
           <div class="reader-controls wrap">

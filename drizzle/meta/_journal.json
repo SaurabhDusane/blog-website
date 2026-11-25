@@ -78,6 +78,27 @@
       "when": 1794985208000,
       "tag": "0010_early_readers",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1794985209000,
+      "tag": "0011_newsletter_delivery",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794985210000,
+      "tag": "0012_reader_readership",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1794985211000,
+      "tag": "0013_desk_connections",
+      "breakpoints": true
     }
   ]
 }

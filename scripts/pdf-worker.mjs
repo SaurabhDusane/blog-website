@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { parentPort, workerData } from 'node:worker_threads';
 import { AnnotationMode, getDocument, ImageKind, OPS, VerbosityLevel } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import sharp from 'sharp';
+import { recognizePage } from './ocr-scanned-pdf.mjs';
 
 const pdfjsRoot = new URL('.', import.meta.resolve('pdfjs-dist/package.json'));
 const maxPages = 180;
@@ -286,7 +287,7 @@ async function readImages(page, operators, imageState) {
 async function parsePdf() {
   const folder = (name) => fileURLToPath(new URL(name + '/', pdfjsRoot)).replaceAll('\\', '/');
   const task = getDocument({
-    data: workerData,
+    data: workerData.data,
     disableFontFace: true,
     fontExtraProperties: true,
     useSystemFonts: false,
@@ -314,7 +315,19 @@ async function parsePdf() {
       pages.push({ ...result, page });
       page.cleanup();
     }
-    const first = pages.find(({ lines }) => lines.some(({ text }) => /[\p{L}\p{N}]/u.test(text)));
+    if (workerData.ocr) {
+      const scans = pages.filter(({ lines }) => !lines.some(({ text }) => /[\p{L}\p{N}]/u.test(text)));
+      if (scans.length > 10) throw new ConversionError('Only ten scanned pages can be reviewed at once. Split the PDF into smaller files.');
+      for (const entry of scans) {
+        try {
+          entry.ocr = await recognizePage(pdf, entry.page, workerData.ocr);
+          budget.characters += entry.ocr.paragraphs.reduce((total, { text }) => total + text.length, 0);
+          if (budget.characters > maxCharacters) throw new ConversionError('This PDF has too much text to review in one draft.');
+        }
+        catch (error) { throw new ConversionError(error.message || 'OCR stopped while reading a scan.'); }
+      }
+    }
+    const first = pages.find(({ lines, ocr }) => ocr?.paragraphs.length || lines.some(({ text }) => /[\p{L}\p{N}]/u.test(text)));
     if (!first) throw new ConversionError('The PDF has no readable text. Upload a text PDF or run OCR before uploading.');
 
     const html = [];
@@ -323,8 +336,8 @@ async function parsePdf() {
     let complex = pages.some((page) => page.complex);
     let emptyPages = 0;
     for (const entry of pages) {
-      const { page, lines } = entry;
-      if (!lines.length) emptyPages += 1;
+      const { page, lines, ocr } = entry;
+      if (!lines.length && !ocr?.paragraphs.length) emptyPages += 1;
       let operators;
       try {
         operators = await page.getOperatorList({ annotationMode: AnnotationMode.DISABLE });
@@ -332,6 +345,13 @@ async function parsePdf() {
         imageState.omitted = true;
       }
       for (const element of renderText(lines, page, entry === first)) html.push(element);
+      if (ocr?.words) {
+        complex = true;
+        if (ocr.uncertain) warnings.push(`OCR page ${page.pageNumber} needs review. ${ocr.uncertain} of ${ocr.words} words scored below 75%.`);
+        else warnings.push(`OCR page ${page.pageNumber} was extracted. Proofread it against the original scan.`);
+        html.push(`<p><em>OCR review · Page ${page.pageNumber}${ocr.uncertain ? '. Check the highlighted words.' : '. Check the text against the scan.'}</em></p>`);
+        for (const { parts } of ocr.paragraphs) html.push(`<p>${parts.map(({ word, low }) => low ? `<mark>${escape(word)}</mark>` : escape(word)).join(' ')}</p>`);
+      }
       if (operators) {
         for (const element of await readImages(page, operators, imageState)) html.push(element);
       }
@@ -348,7 +368,7 @@ async function parsePdf() {
     if (complex) warnings.push('The layout is complex. The original PDF is included alongside the extracted text.');
     return {
       html: html.join('\n'),
-      firstLine: first.lines.find(({ text }) => /[\p{L}\p{N}]/u.test(text)).text,
+      firstLine: first.ocr?.paragraphs[0]?.text ?? first.lines.find(({ text }) => /[\p{L}\p{N}]/u.test(text)).text,
       warnings,
       images: imageState.images,
       complex,

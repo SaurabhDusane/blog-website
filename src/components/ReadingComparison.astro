@@ -1,0 +1,39 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props { entries: CollectionEntry<'posts'>['data']['beforeAfter'] }
+const { entries } = Astro.props;
+const dates = new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' });
+---
+
+<section class="reading-comparison wrap" aria-labelledby="reading-comparison-heading">
+  <h2 id="reading-comparison-heading">How this changed</h2>
+  {entries.map(({ title, date, earlier, later, note }) => (
+    <details>
+      <summary>{title}</summary>
+      <div class="reading-comparison__content">
+        <time datetime={date.toISOString().slice(0, 10)}>{dates.format(date)}</time>
+        {note && <p class="reading-comparison__note">{note}</p>}
+        <div class="reading-comparison__excerpts">
+          <div><h3>Earlier</h3><blockquote>{earlier}</blockquote></div>
+          <div><h3>Later</h3><blockquote>{later}</blockquote></div>
+        </div>
+      </div>
+    </details>
+  ))}
+</section>
+
+<style>
+  .reading-comparison { max-inline-size: 68ch; margin-block: 1rem 2rem; }
+  h2 { font-size: clamp(1.8rem, 4vw, 2.5rem); margin-block-end: .6rem; }
+  details { border-block-end: 1px solid var(--line); }
+  summary { color: var(--blue); cursor: pointer; font-weight: 600; padding: .7rem 0; min-block-size: 2.75rem; }
+  .reading-comparison__content { padding-block: .35rem 1rem; }
+  time { font-size: .88rem; color: var(--muted); }
+  .reading-comparison__note { margin-block: .45rem .85rem; }
+  .reading-comparison__excerpts { display: grid; gap: .65rem; margin-block-start: .5rem; }
+  .reading-comparison__excerpts > div { min-inline-size: 0; background: var(--wash); padding: .8rem .9rem; }
+  h3 { font: 600 .9rem var(--font-ui); }
+  blockquote { margin: .5rem 0 0; color: var(--ink); font-family: var(--font-body); overflow-wrap: anywhere; white-space: pre-wrap; }
+  @media (min-width: 48rem) { .reading-comparison__excerpts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>

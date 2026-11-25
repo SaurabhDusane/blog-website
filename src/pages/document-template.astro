@@ -35,9 +35,11 @@ const author = await getJournalAuthor();
 
 <script>
   import { readLibrary, recordReading } from '../lib/reader-state';
+  import { trackReadership } from '../scripts/reader-readership';
 
   const essay = document.querySelector<HTMLElement>('[data-desk-essay]');
   const postId = essay?.dataset.deskEssay;
+  if (postId) trackReadership(postId);
   const progress = essay?.querySelector<HTMLElement>('.reader-progress');
   const fill = progress?.querySelector<HTMLElement>('.reader-progress__fill');
   const prose = essay?.querySelector<HTMLElement>('[data-desk-prose]');

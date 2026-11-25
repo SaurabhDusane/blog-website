@@ -48,6 +48,17 @@ const posts = await getPosts();
         <ul class="essay-index" data-saved-quotes role="list"></ul>
         <p class="saved-page__empty" data-quote-empty hidden>Highlight a passage in an essay and select Save quote. You can also choose a passage at the end of an essay.</p>
       </section>
+      <details class="saved-page__transfer">
+        <summary>Move your Saved shelf</summary>
+        <p>Take your bookmarks, reading progress, quotes, and private notes with you in a file.</p>
+        <button class="text-link" type="button" data-library-export>Download shelf</button>
+        <form data-library-import>
+          <label for="saved-shelf-file">Choose a Second Ink shelf file</label>
+          <input id="saved-shelf-file" name="shelf" type="file" accept=".json,application/json" required />
+          <button class="button" type="submit">Merge into this shelf</button>
+        </form>
+        <p data-library-transfer-status role="status"></p>
+      </details>
       <p class="discovery-sr-only" data-library-status role="status"></p>
     </div>
 
@@ -85,6 +96,14 @@ const posts = await getPosts();
 </Base>
 
 <style>
+  .saved-page__transfer { grid-column: 1 / -1; padding-block-start: .8rem; border-block-start: 1px solid var(--line); }
+  .saved-page__transfer summary { color: var(--blue); cursor: pointer; font-weight: 600; min-block-size: 2.75rem; padding-block: .4rem; }
+  .saved-page__transfer p { color: var(--muted); margin: .35rem 0; }
+  .saved-page__transfer [data-library-export] { border: 0; background: none; padding: 0; cursor: pointer; }
+  .saved-page__transfer form { display: grid; justify-items: start; gap: .45rem; margin-block-start: .65rem; }
+  .saved-page__transfer form input { max-inline-size: 100%; }
+  .saved-page__transfer [data-library-transfer-status]:empty { margin: 0; }
+
   .saved-page__remove {
     background: none;
     border: 0;

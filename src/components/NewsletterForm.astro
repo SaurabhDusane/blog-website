@@ -1,4 +1,6 @@
 ---
+import { readerApi } from '../lib/reader-api';
+
 interface Props {
   id?: string;
   class?: string;
@@ -15,7 +17,7 @@ const Heading = standalone ? 'h1' : 'h2';
     <Heading id={`${id}-heading`}>A letter from the margins</Heading>
     <p>Occasional notes on tools, attention, and the work of making things.</p>
   </div>
-  <form data-newsletter action="/api/newsletter/" method="post">
+  <form data-newsletter action={readerApi('newsletter')} method="post">
     <label for={`${id}-email`}>Email address</label>
     <div class="newsletter-fields">
       <input id={`${id}-email`} name="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required />
@@ -48,6 +50,8 @@ const Heading = standalone ? 'h1' : 'h2';
       try {
         const response = await fetch(form.action, {
           method: 'POST',
+          credentials: 'omit',
+          cache: 'no-store',
           headers: { Accept: 'application/json' },
           body: new URLSearchParams(Array.from(new FormData(form), ([key, value]) => [key, String(value)])),
         });

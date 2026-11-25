@@ -39,6 +39,17 @@ const blockTags = new Set([...proseTags, 'ol', 'ul', 'tr']);
 const segmenter = new Intl.Segmenter('en', { granularity: 'word' });
 const sentences = new Intl.Segmenter('en', { granularity: 'sentence' });
 const legacyPosts = new Map([
+  ['posts/essays/Does_Society_Create_Its_Villains.docx', {
+    slug: 'does-society-create-its-villains',
+    aliases: ['scholars-and-intellectuals-have-debated-the-complicated-notion-that-villains-are-created-by'],
+  }],
+  ['posts/essays/How_Geopolitics_Affects_Our_Daily_Life.docx', {
+    slug: 'how-geopolitics-affects-our-daily-life',
+    aliases: ['how-geopolitics-affect-our-daily-life'],
+  }],
+  ['posts/essays/Villian, Good or Bad.docx', {
+    slug: 'scholars-and-intellectuals-have-debated-the-complicated-notion-that-villains-are-created-by',
+  }],
   ['posts/essays/2026-11-17_what-an-unfinished-page-gives-me.docx', {
     slug: 'what-an-unfinished-page-gives-me', publishedAt: '2026-11-17',
   }],
@@ -51,7 +62,7 @@ const allowedHtml = {
   allowedTags: [
     'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'strong', 'em', 'b', 'i', 's', 'u',
     'sub', 'sup', 'br', 'hr', 'ol', 'ul', 'li', 'blockquote', 'pre', 'code', 'img',
-    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'mark',
   ],
   allowedAttributes: {
     a: ['id', 'href'],
@@ -295,8 +306,14 @@ function prepareDocument(source, converted, sidecar) {
   const firstHeading = descendants(fragment, 'h1').find((node) => cleanText(node));
   const firstParagraph = fragment.childNodes.find((node) => node.tagName === 'p' && cleanText(node));
   const firstLine = converted.firstLine || (firstParagraph && textFirstLine(firstParagraph).split('\n').find((line) => line.trim())?.trim());
-  const rawTitle = metadata.title || styledTitle || (firstHeading && cleanText(firstHeading)) || firstLine || fallbackTitle || 'Untitled reflection';
-  if (firstHeading && cleanText(firstHeading).localeCompare(rawTitle, 'en', { sensitivity: 'base' }) === 0) {
+  const headingTitle = firstHeading && cleanText(firstHeading);
+  const plainTitle = firstLine && firstLine.length <= 110 && firstLine.split(/\s+/u).length <= 15
+    && !/[.!…。！]$/u.test(firstLine) ? firstLine : '';
+  const fileTitle = /[\p{L}]/u.test(fallbackTitle) && !/^(?:document|scan|untitled|img|dsc)\s*\d*$/iu.test(fallbackTitle) ? fallbackTitle : '';
+  const rawTitle = metadata.title || styledTitle || headingTitle || plainTitle || fileTitle || firstLine || 'Untitled reflection';
+  const titleSource = metadata.title ? 'author-supplied' : styledTitle || headingTitle ? 'document heading'
+    : plainTitle ? 'short opening line' : fileTitle ? 'filename' : 'unconfirmed fallback';
+  if (firstHeading && headingTitle.localeCompare(rawTitle, 'en', { sensitivity: 'base' }) === 0) {
     const siblings = firstHeading.parentNode.childNodes;
     siblings.splice(siblings.indexOf(firstHeading), 1);
   } else if (!metadata.title && !styledTitle && !firstHeading && firstParagraph && cleanText(firstParagraph) === rawTitle
@@ -305,7 +322,7 @@ function prepareDocument(source, converted, sidecar) {
     && fragment.childNodes.some((node) => node !== firstParagraph && cleanText(node))) {
     fragment.childNodes.splice(fragment.childNodes.indexOf(firstParagraph), 1);
   }
-  return { fragment, metadata, rawTitle, filenameDate: validDate(datedName?.[1]) };
+  return { fragment, metadata, rawTitle, titleSource, filenameDate: validDate(datedName?.[1]) };
 }
 
 function editorialEntries(metadata, warnings, sourceIds) {
@@ -353,8 +370,11 @@ function editorialEntries(metadata, warnings, sourceIds) {
 }
 
 function renderDocument(source, prepared, converted, paths, sourceIds, corrections) {
-  const { fragment, rawTitle } = prepared;
+  const { fragment } = prepared;
   const metadata = { ...prepared.metadata, ...corrections };
+  const rawTitle = corrections.title || prepared.rawTitle;
+  const titleSource = corrections.title ? 'author correction' : prepared.titleSource;
+  const needsTitleReview = titleSource === 'filename' || titleSource === 'unconfirmed fallback' || rawTitle.length > 180;
   const files = new Map(converted.images);
   const cover = takeCover(fragment, files) ?? converted.cover;
   const footnoteCount = source.format === 'docx' ? placeFootnotes(fragment) : 0;
@@ -392,6 +412,8 @@ function renderDocument(source, prepared, converted, paths, sourceIds, correctio
   };
   const warnings = [...converted.warnings];
   if (rawTitle.length > 180) warnings.push('The title was shortened to fit the reading desk.');
+  if (titleSource === 'filename') warnings.push('The opening reads like prose. Check the title taken from the filename.');
+  if (titleSource === 'unconfirmed fallback') warnings.push('Add a title to the correction file or use a title heading in the document.');
   if (!slugify(title)) warnings.push('The title uses characters that need a short generated URL.');
   if (metadata.date && !validDate(metadata.date)) warnings.push('The date header was invalid.');
   if ((metadata['source-url'] || metadata.source) && !originalSource) warnings.push('Source-url must be an absolute HTTP(S) URL.');
@@ -414,12 +436,24 @@ function renderDocument(source, prepared, converted, paths, sourceIds, correctio
     }
     return [{ date: update[1], note: shorten(update[2], 600) }];
   }).sort((first, second) => second.date.localeCompare(first.date));
+  const comparisons = metadata['before-after'] ?? [];
+  if (comparisons.length > 4) warnings.push('Only the first four before-and-after entries are shown.');
+  const beforeAfter = comparisons.slice(0, 4).flatMap((value) => {
+    const [date, title, earlier, later, note, extra] = value.split('|').map((part) => part.trim());
+    if (extra !== undefined || !validDate(date) || !title || title.length > 110 || !earlier || earlier.length > 1400
+      || !later || later.length > 1400 || (note && note.length > 600)) {
+      warnings.push('Before-after needs a valid date, a short title, and two public excerpts. This entry was skipped.');
+      return [];
+    }
+    return [{ date, title, earlier, later, note: note || undefined }];
+  });
   const looseThread = source.looseThread || metadata.kind?.toLowerCase() === 'thread';
   const followUp = metadata['follow-up'];
   if (looseThread && followUp && !postId.test(followUp)) warnings.push('Follow-up needs the slug of a published essay.');
 
   return {
     files, tags: [...tags], warnings, html, classification,
+    titleReview: { title, source: titleSource, needsReview: needsTitleReview },
     data: {
       title,
       description,
@@ -438,6 +472,7 @@ function renderDocument(source, prepared, converted, paths, sourceIds, correctio
       reflectionQuestion: metadata.question ? shorten(metadata.question, 240) : undefined,
       fieldNotePrompt: metadata['field-note-prompt'] ? shorten(metadata['field-note-prompt'], 240) : undefined,
       updates,
+      beforeAfter,
       looseThread: looseThread || undefined,
       threadFollowUp: looseThread && followUp && postId.test(followUp) ? followUp : undefined,
       ...editorialEntries(metadata, warnings, sourceIds),
@@ -456,7 +491,7 @@ const [sources, reservedPosts, reservedTopics, authors, paths, sourceIds, state,
     platform: process.platform,
     arch: process.arch,
     sharp: sharp.versions,
-  }, ['./import-word.mjs', './essay-classifier.mjs', './essay-classifier-training.mjs', './convert-docx.mjs', './import-pdf.mjs', './pdf-worker.mjs', './document-input.mjs', './word-footnotes.mjs', './word-import-cache.mjs', '../package-lock.json']
+  }, ['./import-word.mjs', './essay-classifier.mjs', './essay-classifier-training.mjs', './convert-docx.mjs', './import-pdf.mjs', './pdf-worker.mjs', './ocr-scanned-pdf.mjs', './document-input.mjs', './word-footnotes.mjs', './word-import-cache.mjs', '../package-lock.json']
     .map((file) => new URL(file, import.meta.url))),
 ]);
 if (!authors.has(journalAuthorId)) throw new Error('Add the Second Ink author profile before importing documents.');
@@ -487,13 +522,14 @@ for (const directory of [imagesDirectory, pdfDirectory]) {
 
 function note(source, status, reason, details = {}) {
   const clean = (value) => String(value).replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 500);
-  const { classification, ...rest } = details;
+  const { classification, titleReview, ...rest } = details;
   records.push({
     path: clean(source.path), status, reason: clean(reason), ...rest,
     classification: classification && {
       topics: { ...classification.topics, labels: classification.topics.labels.map(clean).filter(Boolean) },
       mood: classification.mood,
     },
+    titleReview: titleReview && { ...titleReview, title: clean(titleReview.title) },
     warnings: (details.warnings ?? []).map(clean).filter(Boolean).slice(0, 12),
   });
 }
@@ -563,6 +599,9 @@ for (const source of sources) {
   try {
     const sidecar = source.format === 'pdf' ? await readPdfMetadata(root, source.sidecars) : {};
     visibility = visibilityOf(source, sidecar);
+    if (sidecar.ocr && (sidecar.ocr.toLowerCase() !== 'review' || visibility !== 'draft')) {
+      throw new Error('Use ocr: review on a private draft PDF. Put the file in posts/drafts/ or set status: draft.');
+    }
     if (visibility !== 'published' && !preview) {
       const { sourceHash } = await readSource(root, source);
       existing ??= identify(source, sourceHash);
@@ -572,8 +611,15 @@ for (const source of sources) {
     }
     const { bytes, sourceHash, info } = await readSource(root, source);
     existing ??= identify(source, sourceHash);
+    let ocr;
+    if (sidecar.ocr) {
+      const language = sidecar['ocr-language'] ?? 'eng';
+      if (!/^[a-z]{3}(?:_[a-zA-Z]{3,8})?$/.test(language)) throw new Error('Use one installed Tesseract language code, such as eng.');
+      if (process.env.SECOND_INK_ENABLE_OCR !== '1') throw new Error('This private preview needs SECOND_INK_ENABLE_OCR=1 and a Tesseract installation.');
+      ocr = { language, command: process.env.SECOND_INK_OCR_COMMAND?.trim() || 'tesseract' };
+    }
     const key = cache.keyFor(Buffer.from(source.format + ':' + sourceHash));
-    let cached = await cache.read(key);
+    let cached = ocr ? undefined : await cache.read(key);
     if (cached?.problem) {
       if (!preview) await cache.keep(key);
       throw new Error(cached.problem);
@@ -592,7 +638,7 @@ for (const source of sources) {
     let converted = cached;
     if (!converted) {
       try {
-        converted = await (source.format === 'pdf' ? convertPdf(bytes) : convertDocx(bytes));
+        converted = await (source.format === 'pdf' ? convertPdf(bytes, { ocr }) : convertDocx(bytes));
       } catch (error) {
         if (!preview && permanentFileProblem.test(error.message)) await cache.keep(key, { problem: error.message });
         throw error;
@@ -612,7 +658,7 @@ for (const source of sources) {
     const post = renderDocument(source, prepared, converted, paths, sourceIds, corrections);
     const legacy = legacyPosts.get(source.path);
     const hidden = visibility !== 'published';
-    const allocation = existing || legacy || postSlug((hidden ? 'Draft ' : '') + post.data.title, sourceHash);
+    const allocation = existing || legacy || postSlug((hidden ? 'Draft ' : '') + shorten(prepared.rawTitle, 180), sourceHash);
     const slug = allocation.slug;
     if (allocation.duplicate) post.warnings.push('This title shares a URL name with another post, so a suffix was added.');
     const fingerprint = digest(sourceHash + '\n' + JSON.stringify(sidecar)
@@ -621,7 +667,7 @@ for (const source of sources) {
       ?? validDate(prepared.metadata.date) ?? committedDate(root, source.path) ?? info.mtime.toISOString().slice(0, 10);
     const updated = Boolean(existing && existing.fingerprint !== fingerprint);
     const updatedAt = updated ? (editDate(root, source) ?? info.mtime.toISOString().slice(0, 10)) : existing?.updatedAt;
-    const aliases = existing?.aliases ?? [];
+    const aliases = [...new Set([...(existing?.aliases ?? []), ...(legacy?.aliases ?? [])])].filter((alias) => alias !== slug);
     const documentSource = post.data.documentSource;
     documentSource.draft = hidden || undefined;
     if (source.format === 'pdf') {
@@ -644,7 +690,8 @@ for (const source of sources) {
       : existing && existing.path !== source.path ? 'The renamed file kept its original URL.'
         : existing ? 'The published version is current.' : 'Ready at /posts/' + slug + '/.';
     note(source, status, reason, { slug, conversion: cached ? 'cached' : 'converted', warnings: post.warnings,
-      classification: hidden ? undefined : post.classification, labelsFile: hidden ? undefined : source.labelsPath,
+      classification: hidden ? undefined : post.classification, titleReview: hidden ? undefined : post.titleReview,
+      labelsFile: hidden ? undefined : source.labelsPath,
       labelsFileExists: hidden ? undefined : Boolean(source.labelsFile) });
   } catch (error) {
     let preserved = false;
@@ -681,8 +728,10 @@ if (!preview) {
 }
 const reportText = [
   'Document conversion report',
-  ...records.flatMap(({ path, status, reason, classification, labelsFile, warnings }) => [
+  ...records.flatMap(({ path, status, reason, slug, classification, titleReview, labelsFile, warnings }) => [
     status.charAt(0).toUpperCase() + status.slice(1) + ' — ' + path + ' · ' + reason,
+    ...(titleReview ? [`  Title · ${titleReview.title} (${titleReview.source}${titleReview.needsReview ? ', check title' : ''})`] : []),
+    ...(titleReview && slug ? [`  Essay URL · /posts/${slug}/`] : []),
     ...reportClassification(classification),
     ...(labelsFile ? [`  Label corrections · ${labelsFile}`] : []),
     ...warnings.map((warning) => '  Check: ' + warning),

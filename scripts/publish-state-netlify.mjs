@@ -269,7 +269,7 @@ export async function publishReport(data, request = fetch) {
       const href = `${root}/${record.labelsFileExists ? 'edit' : 'tree'}/${encodeURIComponent(ref)}/${path}`;
       return `<li><a href="${href}">${record.labelsFileExists ? 'Edit' : 'Add'} ${escapeHtml(name)}</a></li>`;
     });
-    if (links.length) await appendFile(summary, `### Correct a label\n\n<ul>${links.join('')}</ul>\n\n`);
+    if (links.length) await appendFile(summary, `### Correct a title or label\n\n<ul>${links.join('')}</ul>\n\n`);
   }
   if (!token || !/^[a-f0-9]{40}$/.test(sha ?? '')) return;
   const failures = report.records.filter((entry) => entry.status === 'problem');

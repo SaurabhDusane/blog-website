@@ -1,5 +1,6 @@
 import { exportReaderResponses, stanceMovement, stancePairs } from './response-backups.mjs';
 import { createFieldNoteStorage } from './field-note-storage.mjs';
+import { snapshotRecoveryRows } from './recovery-bundle.mjs';
 
 const feedbackSql = {
   save: `
@@ -52,6 +53,27 @@ const feedbackSql = {
     SELECT id, post_slug AS postId, message, email, received_at AS receivedAt
     FROM author_replies ORDER BY id DESC LIMIT 100
   `,
+  countReadership: `
+    INSERT INTO reader_readership (post_slug, day, kind, count) VALUES (?, ?, ?, 1)
+    ON CONFLICT (post_slug, day, kind) DO UPDATE SET count = count + 1
+  `,
+  readershipWeek: `
+    WITH activity AS (
+      SELECT post_slug, kind, count FROM reader_readership WHERE day BETWEEN ? AND ?
+      UNION ALL
+      SELECT post_slug, 'reply', count(*) FROM author_replies
+      WHERE received_at >= ? AND received_at < ? GROUP BY post_slug
+      UNION ALL
+      SELECT post_slug, 'reaction', count(*) FROM reader_feedback
+      WHERE submitted_at >= ? AND submitted_at < ? GROUP BY post_slug
+    )
+    SELECT post_slug AS postId,
+      SUM(CASE kind WHEN 'finished' THEN count ELSE 0 END) AS finished,
+      SUM(CASE kind WHEN 'saved' THEN count ELSE 0 END) AS saved,
+      SUM(CASE kind WHEN 'reply' THEN count ELSE 0 END) AS replies,
+      SUM(CASE kind WHEN 'reaction' THEN count ELSE 0 END) AS reactions
+    FROM activity GROUP BY post_slug ORDER BY SUM(count) DESC, post_slug LIMIT 100
+  `,
   monthlyNote: `
     SELECT featured.month, featured.excerpt, response.post_slug AS postId
     FROM featured_reader_notes featured
@@ -84,6 +106,7 @@ export function createFeedbackStorage(all, run) {
   return {
     ...createFieldNoteStorage(all),
     exportReaderResponses: (now) => exportReaderResponses(all, now),
+    snapshotRecoveryRows: () => snapshotRecoveryRows(all),
     checkResponseStorage: () => all('SELECT 1 FROM reader_feedback LIMIT 1'),
     async saveFeedback(postId, readerKey, feeling, note, answer, submittedAt, featureConsent = false) {
       return (await all(feedbackSql.save, postId, readerKey, feeling, note, answer, submittedAt, featureConsent ? 1 : 0)).length > 0;
@@ -114,6 +137,8 @@ export function createFeedbackStorage(all, run) {
     },
     reconsiderationCounts: (postId, readerKey) => all(feedbackSql.reconsiderationCounts, postId, readerKey),
     privateReplies: () => all(feedbackSql.privateReplies),
+    countReadership: (...values) => run(feedbackSql.countReadership, ...values),
+    readershipWeek: (start, end, since, before) => all(feedbackSql.readershipWeek, start, end, since, before, since, before),
     async monthlyNote(month) {
       return (await all(feedbackSql.monthlyNote, month))[0];
     },

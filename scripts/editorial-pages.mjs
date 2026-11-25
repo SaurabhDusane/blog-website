@@ -3,6 +3,7 @@ import { parseFragment } from 'parse5';
 import { serveEditorialMedia } from './editorial-media.mjs';
 import { logOperation } from './operations-log.mjs';
 import { essayTopics } from './essay-classifier.mjs';
+import { anchorArchivePassages, renderedArchivePassages } from './archive-passages.mjs';
 import { journalAuthorPath } from '../src/lib/journal-author.mjs';
 
 const deskPost = /^\/posts\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\/index\.html|\/)?$/;
@@ -18,10 +19,12 @@ function response(request, body, type) {
   });
 }
 
-function article(template, publication) {
-  const { slug, title, description, body, documentKey, publishedAt, topics = [], mood = 'reflective' } = publication;
+function article(template, publication, titles) {
+  const { slug, title, description, body, documentKey, publishedAt, topics = [], mood = 'reflective', connections = [] } = publication;
   const date = new Intl.DateTimeFormat('en', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(publishedAt));
   const minutes = Math.max(1, Math.ceil(body.trim().split(/\s+/).length / 220));
+  const links = connections.filter(({ post }) => titles.has(post)).map(({ post, reason }) =>
+    `<li><a href="/posts/${escape(post)}/">${escape(titles.get(post))}</a><p>${escape(reason)}</p></li>`);
   const values = {
     'DESK-TITLE': escape(title),
     'DESK-DESCRIPTION': escape(description),
@@ -33,7 +36,8 @@ function article(template, publication) {
       .map((id) => `<a class="eyebrow" href="/topics/${id}/">${escape(essayTopics[id])}</a>`).join('')}</div>` : '',
     'DESK-MOOD': escape(mood),
     'DESK-DOCUMENT': documentKey?.endsWith('.pdf') ? `<p class="desk-essay__original"><a href="/document-originals/${slug}/">Download the original PDF</a></p>` : '',
-    'DESK-PROSE': micromark(body),
+    'DESK-PROSE': anchorArchivePassages(micromark(body)) + (links.length
+      ? `<section aria-label="Across subjects"><h2>Across subjects</h2><ul>${links.join('')}</ul></section>` : ''),
     'document-template/': `posts/${slug}/`,
   };
   return template.replace(/DESK-(?:TITLE|DESCRIPTION|DATE|PUBLISHED|SLUG|MINUTES|TOPICS|MOOD|DOCUMENT|PROSE)|document-template\//g, (token) => values[token]);
@@ -57,12 +61,14 @@ function archiveRows(page, rows, collection) {
   const template = /<template\b[^>]*\bid="desk-essay-row"[^>]*>([\s\S]*?)<\/template>/;
   const count = /(<p\b[^>]*\bdata-result-count\b[^>]*>)(\d+) (essay|note|piece)s?(<\/p>)/;
   if (!template.test(page)) return page;
-  const rendered = page.replace(template, (_match, html) => rows.map(({ slug, title, description, body, mood = 'reflective', topics = [] }) => {
+  const rendered = page.replace(template, (_match, html) => rows.map(({ slug, title, description, body, mood = 'reflective', topics = [], revision, updatedAt, publishedAt }) => {
     const minutes = Math.max(1, Math.ceil(body.trim().split(/\s+/).length / 220));
     const ids = topics.filter((id) => Object.hasOwn(essayTopics, id));
+    const changedAt = updatedAt ?? publishedAt ?? '';
     const values = { SLUG: slug, TITLE: escape(title), DESCRIPTION: escape(description), MOOD: escape(mood), TOPICS: ids.join(' '),
+      VERSION: escape(`desk-${revision ?? changedAt}`), CHANGED: escape(changedAt),
       LABELS: escape(ids.map((id) => essayTopics[id]).join(' ')) };
-    return html.replace(/DESK-ROW-(SLUG|TITLE|DESCRIPTION|MOOD|TOPICS|LABELS)|data-minutes="0"|>0 min</g, (placeholder, field) => (
+    return html.replace(/DESK-ROW-(SLUG|TITLE|DESCRIPTION|MOOD|TOPICS|LABELS|VERSION|CHANGED)|data-minutes="0"|>0 min</g, (placeholder, field) => (
       field ? values[field] : placeholder.replace('0', String(minutes))
     ));
   }).join(''));
@@ -81,10 +87,15 @@ function passageText(node) {
   return (node.childNodes ?? []).map(passageText).join(separator);
 }
 
-function archiveIndex(json, rows) {
+function archiveIndex(json, rows, anchored = false) {
   const entries = JSON.parse(json);
   for (const { slug, body } of rows) {
-    const passages = parseFragment(micromark(body)).childNodes;
+    const html = micromark(body);
+    if (anchored) {
+      entries[`/posts/${slug}/`] = renderedArchivePassages(html);
+      continue;
+    }
+    const passages = parseFragment(html).childNodes;
     entries[`/posts/${slug}/`] = passages.filter(({ tagName }) => tagName)
       .map((node) => passageText(node).replace(/\s+/g, ' ').trim()).filter(Boolean);
   }
@@ -100,7 +111,8 @@ export async function handleEditorialPage(request, url, context, assets) {
   const post = deskPost.exec(pathname)?.[1];
   const original = originalPath.exec(pathname)?.[1];
   const isFeed = pathname === '/rss.xml' || pathname === '/sitemap-0.xml';
-  const isArchive = pathname === '/explore/' || pathname === '/explore/index.json';
+  const archiveFormat = pathname === '/explore/index.json' ? 'text' : pathname === '/explore/passages.json' ? 'passages' : undefined;
+  const isArchive = pathname === '/explore/' || archiveFormat !== undefined;
   const isAuthor = pathname === journalAuthorPath;
   const topic = /^\/topics\/([a-z0-9-]+)\/$/.exec(pathname)?.[1];
   const isTopic = Boolean(topic && Object.hasOwn(essayTopics, topic));
@@ -113,7 +125,7 @@ export async function handleEditorialPage(request, url, context, assets) {
         .filter(({ slug, topics }) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
           && !context.exists(`/posts/${slug}/`) && (!isTopic || topics?.includes(topic)));
       if (!rows.length) return;
-      const body = pathname === '/explore/index.json' ? archiveIndex(asset.body, rows) : archiveRows(asset.body, rows, isTopic || isAuthor);
+      const body = archiveFormat ? archiveIndex(asset.body, rows, archiveFormat === 'passages') : archiveRows(asset.body, rows, isTopic || isAuthor);
       return response(request, body, asset.type);
     }
     if (isFeed) {
@@ -128,7 +140,8 @@ export async function handleEditorialPage(request, url, context, assets) {
       return serveEditorialMedia(request, context.bucket, publication.documentKey, publication.filename);
     }
     if (pathname !== `/posts/${post}/`) return new Response(null, { status: 308, headers: { Location: `/posts/${post}/${search}` } });
-    if (assets[templatePath]) return response(request, article(assets[templatePath].body, publication), assets[templatePath].type);
+    if (assets[templatePath]) return response(request, article(assets[templatePath].body, publication,
+      publication.connections?.length ? await context.catalog() : new Map()), assets[templatePath].type);
   } catch {
     // A temporary desk outage should leave the original blog and feeds readable.
     logOperation('error', 'desk-essay', 'unavailable');

@@ -1,0 +1,29 @@
+name: Verify live release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: second-ink-live-release
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    if: github.repository == 'SaurabhDusane/blog-website' || vars.SECOND_INK_LIVE_ORIGIN != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      LIVE_ORIGIN: ${{ vars.SECOND_INK_LIVE_ORIGIN || 'https://blog-website-beta-pink.vercel.app' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Check the live commit and reading experience
+        run: node scripts/verify-live-release.mjs "$LIVE_ORIGIN" "$GITHUB_SHA"

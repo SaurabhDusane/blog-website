@@ -5,6 +5,7 @@ import { createQuoteImageDialog } from "../lib/quote-image";
 import { passageAnchor, passageTags } from "../lib/article-passages";
 import { readerApi } from "../lib/reader-api";
 import { initReaderListen } from "./reader-listen";
+import { trackReadership } from "./reader-readership";
 
 const themeKey = "second-ink:theme";
 const sizeKey = "second-ink:reader-size";
@@ -80,6 +81,7 @@ function setupReader(reader: HTMLElement, prose: HTMLElement, postId: string, ti
   reader.dataset.readerReady = "";
   const controller = new AbortController();
   const { signal } = controller;
+  trackReadership(postId, signal);
   const view = window.matchMedia(wideReader);
   const passages = Array.from(prose.children).filter(
     (item): item is HTMLElement => item instanceof HTMLElement && item.matches(passageSelector),

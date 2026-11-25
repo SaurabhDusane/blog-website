@@ -21,6 +21,11 @@ const noun = noteCount === 0 ? 'essay' : noteCount === posts.length ? 'note' : '
     </header>
 
     <div class="archive">
+      <details class="archive__changes" data-archive-changes hidden>
+        <summary>Since your last visit <span data-archive-changes-count></span></summary>
+        <ul data-archive-changes-list></ul>
+        <button class="archive__reset" type="button" data-archive-changes-seen>Mark as seen</button>
+      </details>
         <form class="archive__filters" action="/explore/" method="get" role="search" aria-label="Search my writing" hidden>
           <label class="archive__search">
             <span>Search my writing</span>
@@ -87,12 +92,13 @@ const noun = noteCount === 0 ? 'essay' : noteCount === posts.length ? 'note' : '
               description="DESK-ROW-DESCRIPTION"
               minutes={0}
               mood="DESK-ROW-MOOD"
-              filter={{ text: 'DESK-ROW-DESCRIPTION DESK-ROW-LABELS DESK-ROW-MOOD', topics: 'DESK-ROW-TOPICS' }}
+              filter={{ text: 'DESK-ROW-DESCRIPTION DESK-ROW-LABELS DESK-ROW-MOOD', topics: 'DESK-ROW-TOPICS', version: 'DESK-ROW-VERSION', changedAt: 'DESK-ROW-CHANGED' }}
             />
           </template>
           {posts.map((post) => {
             const { data } = post;
             const names = data.topics.map(({ id }) => topicNames.get(id) ?? id);
+            const changedAt = (data.updatedAt ?? data.publishedAt).toISOString();
             return (
               <EssayRow
                 href={postPath(post)}
@@ -101,7 +107,7 @@ const noun = noteCount === 0 ? 'essay' : noteCount === posts.length ? 'note' : '
                 minutes={data.minutes}
                 mood={data.mood}
                 topic={data.looseThread ? 'Short note' : names[0]}
-                filter={{ text: `${data.description} ${names.join(' ')} ${data.mood}`, topics: data.topics.map(({ id }) => id).join(' '), kind: data.looseThread ? 'note' : undefined }}
+                filter={{ text: `${data.description} ${names.join(' ')} ${data.mood}`, topics: data.topics.map(({ id }) => id).join(' '), kind: data.looseThread ? 'note' : undefined, version: changedAt, changedAt }}
               />
             );
           })}
@@ -121,6 +127,12 @@ const noun = noteCount === 0 ? 'essay' : noteCount === posts.length ? 'note' : '
 <style>
   .writing { max-inline-size: 62rem; padding-block: clamp(2rem, 5vw, 4rem) 0; }
   .writing .discovery__header { padding-block-end: clamp(1rem, 2.8vw, 1.75rem); }
+
+  .archive__changes { padding: .25rem .8rem; border-inline-start: 2px solid var(--blue); background: var(--paper); }
+  .archive__changes summary { color: var(--blue); cursor: pointer; font-weight: 600; padding-block: .55rem; }
+  .archive__changes summary span, .archive__changes :global(li span) { color: var(--muted); font-size: .87rem; font-weight: 400; margin-inline-start: .4rem; }
+  .archive__changes ul { margin: 0; padding-inline-start: 1.25rem; }
+  .archive__changes :global(li) { padding-block: .22rem; overflow-wrap: anywhere; }
 
   .archive__search-notice, .archive :global(.archive__excerpt) {
     color: var(--muted);
@@ -143,6 +155,7 @@ const noun = noteCount === 0 ? 'essay' : noteCount === posts.length ? 'note' : '
     text-decoration-color: var(--blue);
     text-underline-offset: .15em;
   }
+  .archive :global(.archive__passage-link) { display: block; margin-block-start: .25rem; }
 </style>
 
 <script>

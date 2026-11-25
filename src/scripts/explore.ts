@@ -1,8 +1,9 @@
 import { track } from '../lib/analytics';
-import { indexPassage, matchEssay, renderExcerpt, searchTerms, type SearchPassage } from '../lib/archive-search';
+import { indexPassage, loadArchivePassages, matchEssay, renderExcerpt, searchTerms, type SearchPassage } from '../lib/archive-search';
 import { feelings, feelingCount } from '../lib/feelings';
 import { readMoodWeather, type MoodWeather } from '../lib/mood-weather';
 import { setupArchiveQuestions } from './archive-questions';
+import { setupArchiveVisits } from './archive-visits';
 
 type Essay = {
   element: HTMLElement;
@@ -41,11 +42,24 @@ function collectEssay(element: HTMLElement): Essay[] {
   }];
 }
 
-async function fetchArchive() {
-  const response = await fetch('/explore/index.json');
-  if (!response.ok) throw new Error('The essay index is unavailable.');
-  const passages: Record<string, string[]> = await response.json();
-  return new Map(Object.entries(passages).map(([path, text]) => [path, text.map((value) => indexPassage(value))]));
+async function fetchArchive(essays: Essay[]) {
+  const anchored = await loadArchivePassages().catch(() => undefined);
+  const missing = essays.filter(({ path }) => !anchored?.get(path)?.length);
+  if (anchored && !missing.length) return anchored;
+
+  try {
+    const response = await fetch('/explore/index.json');
+    if (!response.ok) throw new Error('The essay index is unavailable.');
+    const fallback: Record<string, string[]> = await response.json();
+    const combined = new Map(anchored);
+    for (const { path } of missing) {
+      if (Array.isArray(fallback[path])) combined.set(path, fallback[path].map((value) => indexPassage(value)));
+    }
+    return combined;
+  } catch (error) {
+    if (anchored) return anchored;
+    throw error;
+  }
 }
 
 function initExplore() {
@@ -75,6 +89,9 @@ function initExplore() {
   let reportResults = false;
 
   setupArchiveQuestions(page, essays.map(({ path, title }) => ({ path, title: title.text })));
+  setupArchiveVisits(page, essays.map(({ postId, path, title, element }) => ({
+    postId, path, title: title.text, version: element.dataset.changeVersion, changedAt: element.dataset.changedAt,
+  })), search);
 
   const showResults = () => {
     const filters = new FormData(form);
@@ -89,7 +106,7 @@ function initExplore() {
     if (topicFilter) topicFilter.hidden = !hasTopics && !topic;
     if (terms.length > 0 && archiveState === 'idle') {
       archiveState = 'loading';
-      void fetchArchive().then((loaded) => {
+      void fetchArchive(essays).then((loaded) => {
         archive = loaded;
         archiveState = 'ready';
         showResults();
@@ -125,7 +142,16 @@ function initExplore() {
 
       essay.element.hidden = result === null;
       essay.excerpt.hidden = !result?.excerpt;
-      if (result?.excerpt) essay.excerpt.replaceChildren(renderExcerpt(result.excerpt, terms));
+      if (result?.excerpt) {
+        essay.excerpt.replaceChildren(renderExcerpt(result.excerpt, terms));
+        if (result.excerpt.anchor) {
+          const link = document.createElement('a');
+          link.className = 'archive__passage-link';
+          link.href = `${essay.path}#${encodeURIComponent(result.excerpt.anchor)}`;
+          link.textContent = result.excerpt.heading || 'Open this passage';
+          essay.excerpt.append(link);
+        }
+      }
       if (result) {
         matches += 1;
         if (essay.kind === 'note') notes += 1;

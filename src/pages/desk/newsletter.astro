@@ -1,0 +1,147 @@
+---
+import Base from '../../layouts/Base.astro';
+import '../../styles/response-desk.css';
+---
+
+<Base title="Newsletter desk" description="Preview and send Second Ink’s newsletter." noindex>
+  <div class="wrap interior response-desk newsletter-desk" data-newsletter-desk>
+    <header class="response-desk__header">
+      <div>
+        <p class="eyebrow">Private desk</p>
+        <h1>Newsletter</h1>
+      </div>
+      <div class="newsletter-desk__actions">
+        <a class="text-link" href="/desk/responses/">Reader responses</a>
+        <button type="button" class="newsletter-desk__link" data-newsletter-logout hidden>Sign out</button>
+      </div>
+    </header>
+    <noscript><p>Turn on JavaScript to open the newsletter desk.</p></noscript>
+    <p class="response-desk__status" role="status" aria-atomic="true" tabindex="-1" data-newsletter-status></p>
+    <form class="response-desk__sign-in" action="/api/admin/session/" method="post" data-newsletter-login hidden>
+      <label for="newsletter-password">Owner password</label>
+      <div>
+        <input id="newsletter-password" type="password" name="password" required autocomplete="current-password" />
+        <button type="submit" class="button">Open the desk</button>
+      </div>
+    </form>
+
+    <div class="newsletter-desk__contents" data-newsletter-content hidden>
+      <section aria-labelledby="newsletter-subscribers">
+        <h2 id="newsletter-subscribers">Subscribers</h2>
+        <dl class="newsletter-desk__counts">
+          <div><dt>Confirmed</dt><dd data-subscription-confirmed>0</dd></div>
+          <div><dt>Awaiting confirmation</dt><dd data-subscription-pending>0</dd></div>
+          <div><dt>Earlier signups</dt><dd data-subscription-legacy>0</dd></div>
+        </dl>
+        <p class="newsletter-desk__muted" data-newsletter-availability></p>
+      </section>
+
+      <section aria-labelledby="newsletter-new-digest">
+        <h2 id="newsletter-new-digest">Write a digest</h2>
+        <form action="/api/admin/newsletter/" method="post" data-newsletter-compose>
+          <fieldset class="newsletter-desk__editor" data-compose-fields>
+            <legend class="sr-only">Digest draft</legend>
+            <label for="newsletter-subject">Subject</label>
+            <input id="newsletter-subject" name="subject" maxlength="120" required />
+            <label for="newsletter-introduction">Introduction <span class="newsletter-desk__muted">Optional</span></label>
+            <textarea id="newsletter-introduction" name="introduction" maxlength="3000" rows="4"></textarea>
+            <fieldset class="newsletter-desk__posts" aria-describedby="newsletter-post-hint">
+              <legend>Published essays</legend>
+              <p class="newsletter-desk__muted" id="newsletter-post-hint">Choose one to eight. Essays appear in the order listed here.</p>
+              <div data-newsletter-posts></div>
+              <p class="newsletter-desk__muted" data-newsletter-no-posts hidden>Publish an essay before writing a digest.</p>
+            </fieldset>
+            <button type="submit" class="button" data-newsletter-preview-button>Preview email</button>
+          </fieldset>
+        </form>
+        <section class="newsletter-desk__preview" aria-labelledby="newsletter-preview-title" data-newsletter-preview hidden>
+          <h3 id="newsletter-preview-title" tabindex="-1">Email preview</h3>
+          <p class="newsletter-desk__subject" data-preview-subject></p>
+          <pre data-preview-body></pre>
+          <p class="newsletter-desk__muted" data-preview-audience></p>
+          <button type="button" class="button" data-newsletter-send>Approve and send</button>
+        </section>
+      </section>
+
+      <section aria-labelledby="newsletter-recent-title">
+        <h2 id="newsletter-recent-title">Recent sends</h2>
+        <ul class="newsletter-desk__recent editorial-list" role="list" data-newsletter-recent></ul>
+        <p class="newsletter-desk__muted" data-newsletter-no-sends>No digests sent yet.</p>
+      </section>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import '../../scripts/newsletter-desk';
+</script>
+
+<style>
+  .newsletter-desk { max-inline-size: 49rem; }
+  .newsletter-desk__actions { display: flex; flex-wrap: wrap; gap: .6rem 1.1rem; }
+  .newsletter-desk__link {
+    padding: 0;
+    border: 0;
+    color: var(--blue);
+    background: transparent;
+    min-block-size: 2.75rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: .15em;
+  }
+  .newsletter-desk__link:disabled, .newsletter-desk .button:disabled { opacity: .68; cursor: default; }
+  .newsletter-desk__contents { display: grid; gap: clamp(1.55rem, 5vw, 2.7rem); }
+  .newsletter-desk__counts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+    gap: .55rem 1rem;
+    margin-block: .75rem .45rem;
+    padding-block: .65rem;
+    border-block: 1px solid var(--line);
+  }
+  .newsletter-desk__counts dt, .newsletter-desk__muted { color: var(--muted); }
+  .newsletter-desk__counts dd { margin: .2rem 0 0; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+  .newsletter-desk__muted:empty { margin: 0; }
+  .newsletter-desk__editor, .newsletter-desk__posts { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+  .newsletter-desk__editor { display: grid; gap: .35rem; margin-block-start: .8rem; }
+  label, legend { font-weight: 600; }
+  label .newsletter-desk__muted { margin-inline-start: .3rem; font-size: .87rem; font-weight: 400; }
+  .newsletter-desk__editor :is(input:not([type='checkbox']), textarea) {
+    inline-size: 100%;
+    padding: .5rem .65rem;
+    margin-block-end: .6rem;
+    border: 1px solid var(--muted);
+    border-radius: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+  }
+  .newsletter-desk__editor input:not([type='checkbox']) { min-block-size: 2.75rem; }
+  textarea { resize: vertical; }
+  .newsletter-desk__posts p { margin: .1rem 0 .35rem; }
+  .newsletter-desk__posts :global(label) {
+    display: flex;
+    align-items: flex-start;
+    gap: .65rem;
+    padding-block: .45rem;
+    overflow-wrap: anywhere;
+    font-weight: 400;
+    cursor: pointer;
+  }
+  .newsletter-desk__posts :global(input) { flex: 0 0 auto; margin-block-start: .35rem; accent-color: var(--blue); }
+  .newsletter-desk__editor > button { justify-self: start; margin-block-start: .7rem; }
+  .newsletter-desk__preview {
+    margin-block-start: 1rem;
+    padding: clamp(.85rem, 3vw, 1.4rem);
+    border-block-start: 2px solid var(--blue);
+    background: var(--wash);
+  }
+  .newsletter-desk__preview h3 { font-size: clamp(1.65rem, 3.5vw, 2.2rem); }
+  .newsletter-desk__subject { margin: .6rem 0; font-weight: 600; overflow-wrap: anywhere; }
+  pre { margin-block: .6rem .85rem; font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .newsletter-desk__recent { margin-block-start: .7rem; }
+  .newsletter-desk__recent :global(li) { padding-block: .65rem; border-block-end: 1px solid var(--line); }
+  .newsletter-desk__recent :global(p) { margin-block: .2rem 0; overflow-wrap: anywhere; }
+  .newsletter-desk__recent :global(time) { color: var(--muted); font-size: .9rem; }
+  .newsletter-desk__recent :global(button) { margin-block-start: .5rem; }
+</style>

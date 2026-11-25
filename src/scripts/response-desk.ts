@@ -1,6 +1,7 @@
 import { feelingCount, feelingLabel, feelings, type Feeling, type FeelingCounts } from '../lib/feelings';
 import { stances, type StanceCounts } from '../lib/stances';
 import { setupFieldNoteInbox } from './desk-field-notes';
+import { setupDeskOperations } from './desk-operations';
 
 type Essay = { id: string; title: string; total: number; feelings: FeelingCounts; stanceTotal: number; stances: StanceCounts };
 type DailyCount = { date: string; postId: string; count: number };
@@ -156,6 +157,7 @@ function setupDesk(root: HTMLElement) {
   const keptOnly = find<HTMLInputElement>(root, '[data-desk-kept]');
   const inbox = find(root, '[data-desk-inbox]');
   const fieldNotes = setupFieldNoteInbox(root);
+  const operations = setupDeskOperations(root);
   const inboxEmpty = find(root, '[data-inbox-empty]');
   const backups = find<HTMLDetailsElement>(root, '[data-desk-backups]');
   const backupStatus = find(root, '[data-backup-status]');
@@ -259,6 +261,7 @@ function setupDesk(root: HTMLElement) {
     notes.replaceChildren();
     inbox.replaceChildren();
     fieldNotes.clear();
+    operations.clear();
     backupRequest?.abort();
     backups.open = false;
     backupStatus.textContent = '';

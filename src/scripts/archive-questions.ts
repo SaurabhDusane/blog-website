@@ -1,15 +1,5 @@
 import { findArchiveAnswers } from '../lib/archive-answers';
-import { indexPassage, renderExcerpt, type SearchPassage } from '../lib/archive-search';
-
-async function fetchPassages() {
-  const response = await fetch('/explore/passages.json');
-  if (!response.ok) throw new Error('The passage index is unavailable.');
-  const entries: Record<string, Array<{ text: string; anchor: string; heading?: string }>> = await response.json();
-  return new Map(Object.entries(entries).map(([path, passages]) => [
-    path,
-    passages.map(({ text, anchor, heading }) => indexPassage(text, anchor, heading)),
-  ]));
-}
+import { loadArchivePassages, renderExcerpt } from '../lib/archive-search';
 
 export function setupArchiveQuestions(
   page: HTMLElement,
@@ -23,7 +13,6 @@ export function setupArchiveQuestions(
   if (!form || !input || !results || !status) return;
   form.hidden = false;
   let revision = 0;
-  let request: Promise<Map<string, SearchPassage[]>> | undefined;
 
   const clearResults = (message: string) => {
     results.replaceChildren();
@@ -49,11 +38,7 @@ export function setupArchiveQuestions(
     clearResults('Looking through the essays…');
     results.setAttribute('aria-busy', 'true');
     try {
-      request ??= fetchPassages().catch((error: unknown) => {
-        request = undefined;
-        throw error;
-      });
-      const archive = await request;
+      const archive = await loadArchivePassages();
       if (submitted !== revision) return;
       const answers = findArchiveAnswers(essays, archive, question);
       if (!answers.length) {

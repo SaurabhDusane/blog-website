@@ -1,5 +1,6 @@
 import { handleApi, parsePostCatalog } from './api.mjs';
 import { sameDigest } from './reader-crypto.mjs';
+import { readPublicCatalog } from './public-catalog.mjs';
 import { publicReaderPrefix, publicReaderRoute, readReaderBytes, readerApiError, readerOrigin, readerSecretPattern } from './public-reader-relay.mjs';
 
 export function createHostedReaderApi() {
@@ -8,13 +9,7 @@ export function createHostedReaderApi() {
   let source;
   async function publicCatalog(origin) {
     if (source === origin.origin && Date.now() - loadedAt < 30_000) return catalog;
-    const response = await fetch(new URL('/posts/catalog.json', origin), { redirect: 'manual', signal: AbortSignal.timeout(5000) });
-    if (!response.ok || !response.headers.get('Content-Type')?.startsWith('application/json')) {
-      throw new Error('Could not open the public essay catalog.');
-    }
-    const bytes = await readReaderBytes(response, 512 * 1024);
-    if (!bytes) throw new Error('Public essay catalog exceeds its size limit.');
-    catalog = parsePostCatalog(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)));
+    catalog = parsePostCatalog(await readPublicCatalog(origin));
     loadedAt = Date.now();
     source = origin.origin;
     return catalog;

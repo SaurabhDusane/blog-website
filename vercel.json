@@ -14,6 +14,26 @@
       "source": "/authors/mara-ellis/",
       "destination": "/authors/saurabh-dusane/",
       "permanent": true
+    },
+    {
+      "source": "/posts/how-geopolitics-affect-our-daily-life",
+      "destination": "/posts/how-geopolitics-affects-our-daily-life/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/how-geopolitics-affect-our-daily-life/",
+      "destination": "/posts/how-geopolitics-affects-our-daily-life/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/scholars-and-intellectuals-have-debated-the-complicated-notion-that-villains-are-created-by",
+      "destination": "/posts/does-society-create-its-villains/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/scholars-and-intellectuals-have-debated-the-complicated-notion-that-villains-are-created-by/",
+      "destination": "/posts/does-society-create-its-villains/",
+      "permanent": true
     }
   ]
 }

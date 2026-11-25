@@ -15,6 +15,8 @@ export async function getStaticPaths() {
 
 const { author, posts, redirect } = Astro.props as InferGetStaticPropsType<typeof getStaticPaths>;
 if (redirect) return Astro.redirect(journalAuthorPath, 301);
+const currentNote = author.data.onMyMind;
+const dates = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
 ---
 <Base title={author.data.name} description={author.data.bio}>
   <div class="wrap author-page">
@@ -28,6 +30,13 @@ if (redirect) return Astro.redirect(journalAuthorPath, 301);
         <a class="text-link" href="/about/">Why I write here</a>
       </div>
     </header>
+    {currentNote && <aside class="author-current" aria-labelledby="author-current-title">
+      <div class="author-current__heading">
+        <h2 id="author-current-title">On my mind</h2>
+        <time datetime={currentNote.date.toISOString().slice(0, 10)}>{dates.format(currentNote.date)}</time>
+      </div>
+      <p>{currentNote.text}{currentNote.link && <> <a href={currentNote.link}>{currentNote.linkLabel ?? 'Read more'}</a></>}</p>
+    </aside>}
     <AuthorDesk posts={posts} questions={author.data.deskQuestions} />
   </div>
 </Base>
@@ -52,6 +61,18 @@ if (redirect) return Astro.redirect(journalAuthorPath, 301);
     max-inline-size: 32ch;
   }
   .author-intro__note .text-link { min-height: 2.75rem; }
+  .author-current {
+    display: grid;
+    gap: .5rem 1.3rem;
+    margin: 0 0 clamp(1.4rem, 3vw, 2.3rem);
+    padding: .9rem clamp(.85rem, 2.6vw, 1.5rem);
+    border-inline-start: 2px solid var(--red);
+    background: color-mix(in srgb, var(--wash) 58%, var(--paper));
+  }
+  .author-current__heading h2 { font-size: 1.6rem; }
+  .author-current__heading time { font-size: .875rem; color: var(--muted); }
+  .author-current p { margin: 0; max-width: 62ch; font-family: var(--font-body); overflow-wrap: anywhere; }
+  @media (min-width: 39rem) { .author-current { grid-template-columns: minmax(7.6rem, auto) 1fr; } }
   @media (min-width: 53rem) {
     .author-intro { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); align-items: end; }
   }

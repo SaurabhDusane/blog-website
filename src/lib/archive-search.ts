@@ -1,3 +1,5 @@
+import { meaningfulTerms, termStrength } from './archive-meaning';
+
 type SearchWord = {
   value: string;
   start: number;
@@ -11,6 +13,8 @@ export type SearchPassage = {
   heading?: string;
 };
 
+type PassageEntry = { text: string; anchor?: string; heading?: string };
+
 export function indexPassage(text: string, anchor?: string, heading?: string): SearchPassage {
   const words = Array.from(text.matchAll(/[\p{L}\p{M}\p{N}]+(?:['’][\p{L}\p{M}\p{N}]+)*/gu), (match) => ({
     value: match[0].normalize('NFKD').replace(/\p{M}/gu, '').replaceAll('’', "'").toLowerCase(),
@@ -22,11 +26,16 @@ export function indexPassage(text: string, anchor?: string, heading?: string): S
 }
 
 export function searchTerms(query: string) {
-  return [...new Set(indexPassage(query).words.map(({ value }) => value))];
+  return meaningfulTerms(indexPassage(query).words.map(({ value }) => value)).slice(0, 16);
 }
 
-function contains(words: SearchWord[], term: string) {
-  return words.some(({ value }) => value.includes(term));
+export function bestStrength(passage: SearchPassage, term: string, allowPrefix = false) {
+  let strength = 0;
+  for (const { value } of passage.words) {
+    strength = Math.max(strength, termStrength(value, term, allowPrefix));
+    if (strength === 4) break;
+  }
+  return strength;
 }
 
 export function matchEssay(
@@ -35,42 +44,50 @@ export function matchEssay(
   passages: SearchPassage[],
   terms: string[],
 ) {
-  let score = 0;
-  const remaining = new Set(terms);
-  for (const term of terms) {
-    if (contains(title.words, term)) {
-      score += 5;
-      remaining.delete(term);
-    } else if (contains(metadata.words, term)) {
-      score += 2;
-      remaining.delete(term);
-    }
-  }
-
+  const strengths = terms.map((term) => Math.max(bestStrength(title, term, true) * 1.4, bestStrength(metadata, term, true)));
   let excerpt: SearchPassage | undefined;
-  let excerptMatches = 0;
+  let excerptScore = 0;
   for (const passage of passages) {
-    const matchingTerms = terms.filter((term) => contains(passage.words, term));
-    if (matchingTerms.length > excerptMatches) {
+    const matches = terms.map((term, index) => {
+      const strength = bestStrength(passage, term, true);
+      strengths[index] = Math.max(strengths[index], strength);
+      return strength;
+    });
+    const coverage = matches.filter(Boolean).length;
+    const score = coverage * 3 + matches.reduce((sum, strength) => sum + strength, 0);
+    if (score > excerptScore) {
       excerpt = passage;
-      excerptMatches = matchingTerms.length;
-    }
-    for (const term of matchingTerms) {
-      if (remaining.delete(term)) score += 1;
+      excerptScore = score;
     }
   }
 
-  if (remaining.size > 0) return null;
-  if (terms.length > 1 && title.words.map(({ value }) => value).join(' ').includes(terms.join(' '))) {
-    score += 4;
-  }
-  return { score, excerpt };
+  if (strengths.some((strength) => !strength)) return null;
+  const words = title.words.map(({ value }) => value);
+  const phrase = terms.length > 1 && ` ${words.join(' ')} `.includes(` ${terms.join(' ')} `);
+  return { score: strengths.reduce((sum, strength) => sum + strength, 0) + excerptScore / 2 + (phrase ? 5 : 0), excerpt };
+}
+
+let passages: Promise<Map<string, SearchPassage[]>> | undefined;
+
+export function loadArchivePassages() {
+  passages ??= fetch('/explore/passages.json').then(async (response) => {
+    if (!response.ok) throw new Error('The passage index is unavailable.');
+    const entries: Record<string, PassageEntry[]> = await response.json();
+    return new Map(Object.entries(entries).map(([path, entries]) => [
+      path,
+      entries.map(({ text, anchor, heading }) => indexPassage(text, anchor, heading)),
+    ]));
+  }).catch((error: unknown) => {
+    passages = undefined;
+    throw error;
+  });
+  return passages;
 }
 
 export function renderExcerpt(passage: SearchPassage, terms: string[]) {
   const fragment = document.createDocumentFragment();
   const { text, words } = passage;
-  const isMatch = (word: SearchWord) => terms.some((term) => word.value.includes(term));
+  const isMatch = (word: SearchWord) => terms.some((term) => termStrength(word.value, term, true) > 0);
   const first = words.findIndex(isMatch);
   if (first === -1) return fragment;
 

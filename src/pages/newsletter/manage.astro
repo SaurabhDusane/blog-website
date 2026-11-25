@@ -1,0 +1,85 @@
+---
+import '../../styles/global.css';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Newsletter preferences · Second Ink</title>
+  </head>
+  <body>
+    <main class="wrap interior newsletter-manage" data-newsletter-manage>
+      <p class="eyebrow">Second Ink · Newsletter</p>
+      <h1 data-manage-title>Newsletter preferences</h1>
+      <p data-manage-intro>Open the full link from your newsletter email.</p>
+      <form data-manage-form hidden>
+        <button type="submit" class="button" data-manage-action></button>
+      </form>
+      <p role="status" aria-atomic="true" tabindex="-1" data-manage-status></p>
+      <noscript><p>Turn on JavaScript to confirm or unsubscribe using your email link.</p></noscript>
+      <a class="text-link" href="/newsletter/">Back to the newsletter</a>
+    </main>
+  </body>
+</html>
+
+<script>
+  import { readerApi } from '../../lib/reader-api';
+
+  const root = document.querySelector<HTMLElement>('[data-newsletter-manage]')!;
+  const title = root.querySelector<HTMLElement>('[data-manage-title]')!;
+  const intro = root.querySelector<HTMLElement>('[data-manage-intro]')!;
+  const form = root.querySelector<HTMLFormElement>('[data-manage-form]')!;
+  const button = form.querySelector<HTMLButtonElement>('[data-manage-action]')!;
+  const status = root.querySelector<HTMLElement>('[data-manage-status]')!;
+  const action = new URLSearchParams(location.search).get('action');
+  const token = location.hash.slice(1);
+  const confirming = action === 'confirm' && /^[a-f0-9]{64}$/.test(token);
+  const unsubscribing = action === 'unsubscribe' && /^[a-f0-9]{64}\.[a-f0-9]{64}$/.test(token);
+
+  if (confirming || unsubscribing) {
+    title.textContent = confirming ? 'Confirm your signup' : 'Unsubscribe';
+    intro.textContent = confirming
+      ? 'Join the list for occasional emails about new writing on Second Ink.'
+      : 'Stop future newsletter emails from Second Ink.';
+    button.textContent = confirming ? 'Confirm signup' : 'Unsubscribe';
+    form.hidden = false;
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (button.disabled) return;
+      button.disabled = true;
+      status.textContent = 'Updating your newsletter preferences…';
+      status.removeAttribute('data-error');
+      try {
+        const response = await fetch(readerApi(confirming ? 'newsletter-confirm' : 'newsletter-unsubscribe'), {
+          method: 'POST', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || result?.ok !== true) throw Error(result?.message || 'That link could not be used. Try again from your original email.');
+        status.textContent = result.message || (confirming ? 'You’re subscribed.' : 'You’re unsubscribed.');
+        history.replaceState(history.state, '', location.pathname + location.search);
+        form.hidden = true;
+        status.focus();
+      } catch (error) {
+        status.textContent = error instanceof Error && error.name !== 'TypeError'
+          ? error.message : 'The newsletter desk is unavailable. Try again in a moment.';
+        status.dataset.error = 'true';
+      } finally { button.disabled = false; }
+    });
+  }
+</script>
+
+<style>
+  .newsletter-manage { max-inline-size: 43rem; }
+  h1 { font-size: clamp(3rem, 8vw, 5.25rem); letter-spacing: -.03em; }
+  [data-manage-intro] { margin-block-start: 1rem; color: var(--muted); }
+  [data-manage-status] { margin-block: .75rem; color: var(--blue); }
+  [data-manage-status]:empty { margin: 0; }
+  [data-manage-status][data-error] { color: var(--red); }
+</style>

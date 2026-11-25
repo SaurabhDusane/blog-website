@@ -24,7 +24,7 @@ function getText(form, field) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function isEmail(email) {
+export function isEmail(email) {
   if (email.length > 254) return false;
   const [localPart, domain, extra] = email.split('@');
   if (!domain || extra !== undefined || localPart.length > 64) return false;
@@ -109,7 +109,7 @@ a { color: #1939be; text-underline-offset: .18em; }
   });
 }
 
-async function readForm(request, contentType) {
+export async function readForm(request, contentType) {
   const reader = request.body?.getReader();
   if (!reader) throw new Error('No form body');
 
@@ -131,6 +131,10 @@ async function readForm(request, contentType) {
   }
 
   return new Response(new Blob(chunks), { headers: { 'Content-Type': contentType } }).formData();
+}
+
+export function newsletterReceipt(request, status, message) {
+  return respond(request, submissions.newsletter, status, message);
 }
 
 export async function handleSubmission(request, route, storage, publishedPost) {

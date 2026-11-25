@@ -3,7 +3,9 @@ import { micromark } from 'micromark';
 import { setupEarlyReaderDesk } from './early-reader-desk';
 
 type Overrides = { topics?: string[]; mood?: string };
-type Draft = { slug: string; title: string; description: string; body: string; documentKey: string | null; filename: string | null; overrides: Overrides };
+type Connection = { post: string; reason: string };
+type Suggestion = Connection & { title: string; excerpt: string };
+type Draft = { slug: string; title: string; description: string; body: string; documentKey: string | null; filename: string | null; overrides: Overrides; connections: Connection[] };
 type Revision = Draft & { id: number; createdAt: string; topics: string[]; mood: string };
 type HistoryEntry = Pick<Revision, 'id' | 'title' | 'createdAt'>;
 type Entry = { slug: string; title: string; id: number; liveRevision: number | null };
@@ -13,7 +15,7 @@ type VoiceNote = { src: string; audioKey: string; transcript: string };
 const endpoint = '/api/admin/publishing/';
 const session = '/api/admin/session/';
 const formatDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-const blank = (): Draft => ({ slug: '', title: '', description: '', body: '', documentKey: null, filename: null, overrides: {} });
+const blank = (): Draft => ({ slug: '', title: '', description: '', body: '', documentKey: null, filename: null, overrides: {}, connections: [] });
 
 class DeskError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -78,6 +80,15 @@ function init(root: HTMLElement) {
   const documentField = get<HTMLInputElement>('document');
   const importButton = get<HTMLButtonElement>('import');
   const publish = get<HTMLButtonElement>('publish');
+  const release = get<HTMLButtonElement>('release');
+  const releasePanel = get<HTMLDetailsElement>('release-panel');
+  const releaseHelp = get<HTMLElement>('release-help');
+  const releaseDownload = get<HTMLAnchorElement>('release-download');
+  const releaseLive = get<HTMLAnchorElement>('release-live');
+  const findConnections = get<HTMLButtonElement>('find-connections');
+  const connectionStatus = get<HTMLElement>('connection-status');
+  const suggestedConnections = get<HTMLUListElement>('suggested-connections');
+  const approvedConnections = get<HTMLUListElement>('approved-connections');
   const save = editor.querySelector<HTMLButtonElement>('button[type=submit]')!;
   const liveLink = get<HTMLAnchorElement>('live');
   const history = get<HTMLDetailsElement>('history');
@@ -109,6 +120,10 @@ function init(root: HTMLElement) {
   let currentVoice: VoiceNote | null = null;
   let previewTimer = 0;
   let topicLabels: Record<string, string> = {};
+  let publicRelease = false;
+  let connections: Connection[] = [];
+  let suggestions: Suggestion[] = [];
+  let essayTitles = new Map<string, string>();
 
   const draft = (): Draft => ({
     title: title.value, slug: slug.value, description: description.value, body: body.value,
@@ -117,11 +132,12 @@ function init(root: HTMLElement) {
       ...(chooseTopics.checked ? { topics: topics.filter((input) => input.checked).map((input) => input.value) } : {}),
       ...(moodChoice.value ? { mood: moodChoice.value } : {}),
     },
+    connections: connections.map(({ post, reason }) => ({ post, reason: reason.trim() })),
   });
   const dirty = () => Boolean(pendingDocument || JSON.stringify(draft()) !== JSON.stringify({
     title: snapshot.title, slug: snapshot.slug, description: snapshot.description, body: snapshot.body,
     documentKey: snapshot.documentKey, filename: snapshot.filename,
-    overrides: snapshot.overrides,
+    overrides: snapshot.overrides, connections: snapshot.connections,
   }));
   const historical = () => Boolean(detail && detail.revision.id !== detail.latest);
 
@@ -130,6 +146,13 @@ function init(root: HTMLElement) {
     importButton.disabled = busy || historical();
     save.disabled = busy || historical() || (!!detail && !dirty());
     publish.disabled = busy || !detail || historical() || dirty() || detail.live?.id === detail.revision.id;
+    release.hidden = !publicRelease;
+    releaseHelp.hidden = publicRelease;
+    release.disabled = busy || !detail || historical() || dirty();
+    findConnections.disabled = busy || historical() || body.value.trim().length < 30;
+    for (const control of root.querySelectorAll<HTMLInputElement | HTMLButtonElement>('[data-connection-edit]')) {
+      control.disabled = busy || historical();
+    }
     restore.disabled = withdraw.disabled = older.disabled = busy;
     for (const field of [title, description, body]) field.readOnly = busy || historical();
     slug.readOnly = busy || Boolean(detail);
@@ -189,10 +212,70 @@ function init(root: HTMLElement) {
     }
   }
 
+  function renderConnections() {
+    approvedConnections.replaceChildren();
+    suggestedConnections.replaceChildren();
+    const accepted = new Set(connections.map(({ post }) => post));
+    for (const item of connections) {
+      const row = document.createElement('li');
+      const label = document.createElement('label');
+      const reason = document.createElement('input');
+      reason.type = 'text';
+      reason.maxLength = 600;
+      reason.required = true;
+      reason.value = item.reason;
+      reason.dataset.connectionEdit = '';
+      reason.addEventListener('input', () => { item.reason = reason.value; setEditorControls(); });
+      label.append(`Why link to ${essayTitles.get(item.post) ?? item.post}? `, reason);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'text-link';
+      remove.textContent = 'Remove connection';
+      remove.dataset.connectionEdit = '';
+      remove.addEventListener('click', () => {
+        connections = connections.filter(({ post }) => post !== item.post);
+        renderConnections();
+        findConnections.focus();
+      });
+      row.append(label, remove);
+      approvedConnections.append(row);
+    }
+    for (const item of suggestions.filter(({ post }) => !accepted.has(post)).slice(0, Math.max(0, 6 - connections.length))) {
+      const row = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = `/posts/${encodeURIComponent(item.post)}/`;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = item.title;
+      const excerpt = document.createElement('p');
+      excerpt.className = 'publishing-desk__hint';
+      excerpt.textContent = item.excerpt;
+      const add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'text-link';
+      add.textContent = 'Add to this draft';
+      add.dataset.connectionEdit = '';
+      add.addEventListener('click', () => {
+        essayTitles.set(item.post, item.title);
+        connections.push({ post: item.post, reason: item.reason });
+        renderConnections();
+        approvedConnections.querySelector<HTMLInputElement>('li:last-child input')?.focus();
+      });
+      row.append(link, excerpt, add);
+      suggestedConnections.append(row);
+    }
+    approvedConnections.hidden = !approvedConnections.children.length;
+    suggestedConnections.hidden = !suggestedConnections.children.length;
+    setEditorControls();
+  }
+
   function loadDraft(value?: Details) {
     detail = value;
     earlyReader.show(value?.revision.id);
     snapshot = value?.revision ?? blank();
+    snapshot.connections ??= [];
+    connections = snapshot.connections.map((item) => ({ ...item }));
+    suggestions = [];
     pendingDocument = null;
     documentField.value = '';
     title.value = snapshot.title;
@@ -210,6 +293,9 @@ function init(root: HTMLElement) {
     withdraw.hidden = !value?.live;
     liveLink.hidden = !value?.live;
     liveLink.href = `/posts/${snapshot.slug}/`;
+    releasePanel.hidden = !value;
+    releaseLive.hidden = true;
+    if (value) releaseDownload.href = `${endpoint}release/?post=${encodeURIComponent(snapshot.slug)}&revision=${value.revision.id}`;
     original.hidden = !value?.revision.documentKey;
     original.href = value ? `${sectionUrl(snapshot.slug, value.revision.id)}&download=1` : '#';
     get<HTMLElement>('entry-status').textContent = historical() ? 'Viewing an earlier version.'
@@ -224,6 +310,8 @@ function init(root: HTMLElement) {
     }
     linkList.replaceChildren();
     report(linkStatus, '');
+    report(connectionStatus, '');
+    renderConnections();
     renderHistory(value?.history ?? []);
     renderPreview();
     setEditorControls();
@@ -238,8 +326,11 @@ function init(root: HTMLElement) {
   }
 
   async function refreshShelf() {
-    const { entries: list, voicePosts, essayTopics } = await request<{ entries: Entry[]; voicePosts: [string, string][]; essayTopics: Record<string, string> }>(endpoint);
+    const { entries: list, voicePosts, essayTopics, releaseEnabled } = await request<{ entries: Entry[]; voicePosts: [string, string][];
+      essayTopics: Record<string, string>; releaseEnabled: boolean }>(endpoint);
     topicLabels = essayTopics;
+    essayTitles = new Map(voicePosts);
+    publicRelease = releaseEnabled === true;
     updateOptions(entries, list.map(({ slug, title, id, liveRevision }) => [slug, `${title} · ${id === liveRevision ? 'Live' : 'Draft'}`]), 'New essay');
     const previous = voicePost.value;
     updateOptions(voicePost, voicePosts, 'Choose an essay');
@@ -368,6 +459,30 @@ function init(root: HTMLElement) {
       report(editorStatus, 'The essay is live on Second Ink.');
     });
   });
+  findConnections.addEventListener('click', () => {
+    if (historical()) return;
+    void work(connectionStatus, async () => {
+      const { title, description, body, slug } = draft();
+      const response = await request<{ suggestions: Suggestion[] }>(`${endpoint}connections/`, 'POST', { title, description, body, slug });
+      suggestions = response.suggestions;
+      renderConnections();
+      report(connectionStatus, suggestions.length ? 'Review the matching passages before adding a link.' : 'No strong match in the archive yet.');
+    });
+  });
+  release.addEventListener('click', () => {
+    if (!detail || historical() || dirty() || !window.confirm('Send this saved essay to GitHub for public release?')) return;
+    const { slug, id } = detail.revision;
+    void work(editorStatus, async () => {
+      const result = await request<{ href: string; queued: boolean; mirrored: boolean }>(`${endpoint}release/`, 'POST',
+        { slug, revision: id, confirmPublic: true });
+      await refreshShelf();
+      await open(slug);
+      releaseLive.href = result.href;
+      releaseLive.hidden = false;
+      const notice = result.queued ? 'Sent to GitHub. Open the public essay after the site finishes building.' : 'This version is already on the public release branch.';
+      report(editorStatus, notice + (result.mirrored ? '' : ' The private copy did not update.'));
+    });
+  });
   restore.addEventListener('click', () => {
     if (!detail || !historical()) return;
     const { slug, id } = detail.revision;
@@ -379,13 +494,13 @@ function init(root: HTMLElement) {
     });
   });
   withdraw.addEventListener('click', () => {
-    if (!detail?.live || !mayDiscard() || !window.confirm('Take this essay down? Its versions will stay on the desk.')) return;
+    if (!detail?.live || !mayDiscard() || !window.confirm('Withdraw this essay from this site? Manage any GitHub release in the repository.')) return;
     const { slug, id } = detail.live;
     void work(editorStatus, async () => {
       await request(endpoint, 'PATCH', { action: 'withdraw', slug, revision: id });
       await refreshShelf();
       await open(slug);
-      report(editorStatus, 'The essay is back on the desk.');
+      report(editorStatus, 'The private site copy was withdrawn.');
     });
   });
   older.addEventListener('click', () => {

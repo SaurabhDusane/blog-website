@@ -2,6 +2,8 @@ import { authorizeDesk, readJson } from './api.mjs';
 import { mediaKey, serveEditorialMedia, uploadEditorialMedia } from './editorial-media.mjs';
 import { logOperation } from './operations-log.mjs';
 import { essayTopics } from './essay-classifier.mjs';
+import { approvedConnections, suggestDeskConnections } from './editorial-connections.mjs';
+import { editionMarkdown, ReleaseError, releaseSettings, sendDeskRelease } from './editorial-release.mjs';
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const validSlug = (value) => typeof value === 'string' && value.length <= 80 && slugPattern.test(value);
@@ -40,7 +42,7 @@ async function handleDrafts(request, url, context) {
     if (!slug) {
       const [entries, posts, published] = await Promise.all([storage.deskEntries(), catalog(), storage.deskPublications()]);
       const voicePosts = [...posts.entries(), ...published.filter(({ slug }) => !posts.has(slug)).map(({ slug, title }) => [slug, title])];
-      return json({ entries, voicePosts, essayTopics });
+      return json({ entries, voicePosts, essayTopics, releaseEnabled: Boolean(releaseSettings(context.env)) });
     }
     if (!validSlug(slug)) return missing();
     const revisionId = Number(url.searchParams.get('revision'));
@@ -95,10 +97,13 @@ async function handleDrafts(request, url, context) {
         || !await bucket.head(data.documentKey)) return error('Upload the original document again before saving it.', 422);
       documentKey = data.documentKey;
     }
-    const overrides = Object.hasOwn(data, 'overrides') ? labelOverrides(data.overrides)
-      : data.base > 0 ? (await storage.deskRevision(data.slug, data.base))?.overrides ?? {} : {};
+    const base = data.base > 0 && (!Object.hasOwn(data, 'overrides') || !Object.hasOwn(data, 'connections'))
+      ? await storage.deskRevision(data.slug, data.base) : undefined;
+    const overrides = Object.hasOwn(data, 'overrides') ? labelOverrides(data.overrides) : base?.overrides ?? {};
     if (!overrides) return error('Choose topics and a mood from the desk’s labels.', 422);
-    snapshot = { title, description, body, documentKey, filename, overrides };
+    const connections = Object.hasOwn(data, 'connections') ? approvedConnections(data.connections, data.slug) : base?.connections ?? [];
+    if (!connections) return error('Choose up to six distinct essays and give a short reason for each link.', 422);
+    snapshot = { title, description, body, documentKey, filename, overrides, connections };
   }
   const revision = await storage.saveDeskRevision(data.slug, data.base, snapshot, now());
   return revision ? json({ revision }, 201) : conflict();
@@ -158,10 +163,61 @@ async function handleLinks(request, context) {
   return json({ results });
 }
 
+async function handleConnections(request, context) {
+  if (request.method !== 'POST') return method('POST');
+  const { data, response } = await readJson(request, 256 * 1024);
+  if (response) return response;
+  const title = clean(data.title, 180);
+  const description = clean(data.description, 450);
+  const body = clean(data.body, 48000);
+  if (title.length > 180 || description.length > 450 || body.length > 48000 || body.length < 30) {
+    return error('Add a passage of essay text to find connections.', 422);
+  }
+  if (data.slug && !validSlug(data.slug)) return error('Use a valid essay address before finding connections.', 422);
+  const suggestions = suggestDeskConnections({ title, description, body, slug: data.slug }, await context.catalog(), context.passages?.());
+  return json({ suggestions });
+}
+
+async function handleRelease(request, url, context) {
+  if (!['GET', 'POST'].includes(request.method)) return method('GET, POST');
+  if (request.method === 'GET') {
+    const post = url.searchParams.get('post');
+    const version = Number(url.searchParams.get('revision'));
+    if (!validSlug(post) || !numericId(version)) return missing();
+    const revision = await context.storage.deskRevision(post, version);
+    if (!revision) return missing();
+    return new Response(editionMarkdown(revision), { headers: { ...cache, 'X-Robots-Tag': 'noindex',
+      'Content-Type': 'text/markdown; charset=utf-8', 'Content-Disposition': `attachment; filename="${post}.md"` } });
+  }
+  const config = releaseSettings(context.env);
+  if (!config) return error('Connect a GitHub App to send essays to the public site. The Markdown download is ready on the desk.', 503);
+  const { data, response } = await readJson(request, 2048);
+  if (response) return response;
+  if (!validSlug(data.slug) || !numericId(data.revision) || data.confirmPublic !== true) {
+    return error('Choose a saved version and confirm its public release.', 422);
+  }
+  const revision = await context.storage.deskRevision(data.slug);
+  if (!revision || revision.id !== data.revision) return error('The essay changed. Open the latest saved draft before releasing it.', 409);
+  try {
+    const release = await sendDeskRelease(config, revision);
+    let mirrored = false;
+    try {
+      mirrored = await context.storage.publishDeskRevision(revision.slug, revision.id, now())
+        || (await context.storage.deskPublication(revision.slug))?.revision === revision.id;
+    } catch {
+      logOperation('error', 'publishing-desk', 'private-mirror');
+    }
+    return json({ ...release, mirrored }, release.queued ? 202 : 200);
+  } catch (failure) {
+    if (failure instanceof ReleaseError) return error(failure.message, failure.status);
+    throw failure;
+  }
+}
+
 export async function handleEditorialApi(request, context) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/$/, '');
-  const publishing = path === '/api/admin/publishing' || /^\/api\/admin\/publishing\/(?:upload|links|voice)$/.test(path);
+  const publishing = path === '/api/admin/publishing' || /^\/api\/admin\/publishing\/(?:upload|links|voice|connections|release)$/.test(path);
   const publicVoice = path === '/api/voice-note';
   if (!publishing && !publicVoice) return;
   if (!context.bucket) return missing();
@@ -171,6 +227,8 @@ export async function handleEditorialApi(request, context) {
       if (denied) return denied;
       if (path.endsWith('/voice')) return await handleVoice(request, url, context, true);
       if (path.endsWith('/links')) return await handleLinks(request, context);
+      if (path.endsWith('/connections')) return await handleConnections(request, context);
+      if (path.endsWith('/release')) return await handleRelease(request, url, context);
       if (path.endsWith('/upload')) {
         if (request.method !== 'POST') return method('POST');
         const kind = url.searchParams.get('kind');

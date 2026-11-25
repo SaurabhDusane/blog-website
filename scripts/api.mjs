@@ -4,6 +4,11 @@ import { checkReadingProof, checkTurnstile, createReadingProof, readingWaitMs, t
 import { backupWeek, getWeeklyBackup, listWeeklyBackups, saveWeeklyBackup, weeklyBackupStatus } from './response-backups.mjs';
 import { logOperation } from './operations-log.mjs';
 import { sortEssay } from './essay-classifier.mjs';
+import { readershipDay, readershipWeek } from './readership.mjs';
+import { recoveryArchive } from './recovery-bundle.mjs';
+import { latestVerifiedRelease } from './verified-release.mjs';
+import { deliverNewsletterDigest, manageSubscription, newsletterEnabled, newsletterOrigin, newsletterPreview, registerInterest } from './newsletter-api.mjs';
+import { readPublicCatalog } from './public-catalog.mjs';
 
 export const readerFeelings = ['inspired', 'thoughtful', 'challenged', 'comforted', 'surprised', 'not-convinced'];
 const readerStances = ['agree', 'unsure', 'disagree'];
@@ -28,6 +33,9 @@ function routeName(pathname) {
   if (path === '/api/reconsideration') return 'reconsideration';
   if (path === '/api/field-notes') return 'field-notes';
   if (path === '/api/moods') return 'moods';
+  if (path === '/api/readership') return 'readership';
+  if (path === '/api/newsletter-confirm') return 'newsletter-confirm';
+  if (path === '/api/newsletter-unsubscribe') return 'newsletter-unsubscribe';
   if (path === '/api/admin/feedback') return 'dashboard';
   if (path === '/api/admin/field-notes') return 'field-notes-desk';
   if (path === '/api/admin/monthly-note') return 'monthly-note';
@@ -35,6 +43,10 @@ function routeName(pathname) {
   if (path === '/api/admin/publishing/sort') return 'essay-sort';
   if (path === '/api/admin/export') return 'export';
   if (path === '/api/admin/backups') return 'backups';
+  if (path === '/api/admin/readership') return 'readership-desk';
+  if (path === '/api/admin/release') return 'release-desk';
+  if (path === '/api/admin/recovery') return 'recovery-desk';
+  if (path === '/api/admin/newsletter') return 'newsletter-desk';
   if (path === '/api/maintenance/weekly-backup') return 'weekly-backup';
   if (path === '/api/health') return 'health';
   return submissionRoute(pathname);
@@ -595,6 +607,47 @@ function downloadBackup(body, filename) {
   });
 }
 
+async function handleReadership(request, { storage, catalog, ip, publicRelay }) {
+  if (request.method !== 'POST') return methodNotAllowed('POST');
+  const { data, response } = await readJson(request, 1024);
+  if (response) return response;
+  if (typeof data.postId !== 'string' || !validPostId.test(data.postId) || !['saved', 'finished'].includes(data.kind)) {
+    return reject(422, 'Choose a valid essay action.', 'invalid-readership');
+  }
+  if (!(await getCatalog(catalog)).has(data.postId) && (publicRelay || !await storage.deskPublication?.(data.postId))) {
+    return reject(404, 'This piece is missing from the reading desk.', 'unknown-post');
+  }
+  const now = Date.now();
+  const limited = await useRateSlot(storage, 'readership', ip, hour, 36, 180, now);
+  if (limited) return limited;
+  await storage.countReadership(data.postId, readershipDay(now), data.kind);
+  return json({ ok: true });
+}
+
+async function handleReadershipDesk(request, { storage, catalog }, now) {
+  if (request.method !== 'GET') return methodNotAllowed('GET');
+  const { start, end, since, before } = readershipWeek(now);
+  const [posts, entries, articles] = await Promise.all([
+    getCatalog(catalog), storage.readershipWeek(start, end, since, before), storage.deskPublications?.() ?? [],
+  ]);
+  const deskTitles = new Map(articles.map(({ slug, title }) => [slug, title]));
+  return json({ start, end, essays: entries.map((entry) => ({
+    ...entry, title: posts.get(entry.postId) ?? deskTitles.get(entry.postId) ?? entry.postId,
+  })) });
+}
+
+async function handleRecoveryDesk(request, { storage, bucket }, now) {
+  if (request.method !== 'GET') return methodNotAllowed('GET');
+  const rows = await storage.snapshotRecoveryRows();
+  return new Response(recoveryArchive(rows, bucket, now), {
+    headers: {
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'Content-Disposition': `attachment; filename="second-ink-recovery-${readershipDay(now)}.ndjson"`,
+      'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex',
+    },
+  });
+}
+
 async function handleExport(request, { storage }, now) {
   if (request.method !== 'GET') return methodNotAllowed('GET');
   return downloadBackup(await storage.exportReaderResponses(now), `second-ink-responses-${new Date(now).toISOString().slice(0, 10)}.json`);
@@ -643,14 +696,63 @@ async function handleEssaySort(request) {
   return json(sortEssay({ title, description, body }));
 }
 
+async function newsletterCatalog(context) {
+  const origin = newsletterOrigin(context.env);
+  return origin ? parsePostCatalog(await readPublicCatalog(origin)) : getCatalog(context.catalog);
+}
+
+async function handleNewsletterDesk(request, context) {
+  const { storage, env } = context;
+  const enabled = newsletterEnabled(env);
+  if (request.method === 'GET') {
+    const [counts, catalog, recent] = await Promise.all([
+      storage.newsletterCounts(), newsletterCatalog(context), storage.newsletterRecentDigests(),
+    ]);
+    const posts = [...catalog].map(([id, title]) => ({ id, title }));
+    const digests = await Promise.all(recent.map(async (entry) => ({ ...entry, ...await storage.newsletterDigestSummary(entry.id) })));
+    return json({ ok: true, enabled, counts, posts, digests });
+  }
+  if (request.method !== 'POST') return methodNotAllowed('GET, POST');
+  const { data, response } = await readJson(request, 16 * 1024);
+  if (response) return response;
+  let id;
+  if (data.action === 'preview' || data.action === 'send') {
+    const preview = await newsletterPreview(data, await newsletterCatalog(context), env);
+    if (!preview) return reject(422, 'Add a subject and choose one to eight published essays.', 'invalid-digest');
+    if (data.action === 'preview') return json({ ok: true, preview });
+    if (!enabled) return reject(503, 'Connect an email sender before sending a digest.', 'mail-unconfigured');
+    if (preview.id !== data.previewId) return reject(409, 'Review the current preview before sending.', 'preview-required');
+    id = preview.id;
+    await storage.approveNewsletterDigest(id, preview.subject, preview.body, Date.now());
+  } else if (data.action === 'continue' && typeof data.id === 'string' && validToken.test(data.id)) {
+    if (!enabled) return reject(503, 'Connect an email sender before sending a digest.', 'mail-unconfigured');
+    id = data.id;
+  } else return reject(422, 'Choose a digest action.', 'invalid-digest');
+  const progress = await deliverNewsletterDigest(context, id);
+  if (!progress) return reject(404, 'This approved digest is unavailable.', 'unknown-digest');
+  return json({ ok: true, id, ...progress });
+}
+
 export async function handleApi(request, context) {
   const route = routeName(new URL(request.url).pathname);
-  if (route === 'newsletter' || (route === 'reply' && !context.publicRelay)) {
+  if (route === 'reply' && !context.publicRelay) {
     return handleSubmission(request, route, context.storage);
   }
   if (!route) return reject(404, 'This piece slipped out of the stack.', 'not-found');
   if (!sameOrigin(request)) return reject(403, 'Open the form from Second Ink and try again.', 'origin');
   try {
+    if (route === 'newsletter' || route === 'newsletter-confirm' || route === 'newsletter-unsubscribe') {
+      if (request.method !== 'POST') return methodNotAllowed('POST');
+      const limited = await useRateSlot(context.storage, route, context.ip, hour, 12, 60, Date.now());
+      if (limited) return limited;
+      if (route === 'newsletter') return await registerInterest(request, context);
+      const { data, response } = await readJson(request, 2048);
+      if (response) return response;
+      if (!await manageSubscription(route, data.token, context.storage)) {
+        return reject(404, 'This link is invalid or has expired.', 'unknown-link');
+      }
+      return json({ ok: true, message: route === 'newsletter-confirm' ? 'You’re subscribed to Second Ink.' : 'You’ve unsubscribed from Second Ink.' });
+    }
     if (route === 'reply') {
       const limited = await useRateSlot(context.storage, 'public-reply', context.ip, hour, 6, 18, Date.now());
       return limited ?? await handleSubmission(request, route, context.storage,
@@ -668,6 +770,7 @@ export async function handleApi(request, context) {
     if (route === 'field-notes') return await handleFieldNote(request, context);
     if (route === 'feedback') return await handleFeedback(request, context);
     if (route === 'moods') return await handleMoods(request, context);
+    if (route === 'readership') return await handleReadership(request, context);
 
     if (route === 'session') {
       const { password, cookie, response } = deskCredentials(request, context.env);
@@ -675,10 +778,17 @@ export async function handleApi(request, context) {
     }
     const denied = await authorizeDesk(request, context);
     if (denied) return denied;
+    if (route === 'newsletter-desk') return await handleNewsletterDesk(request, context);
     if (route === 'essay-sort') return await handleEssaySort(request);
     const now = Date.now();
     if (route === 'export') return await handleExport(request, context, now);
     if (route === 'backups') return await handleBackupShelf(request, context);
+    if (route === 'readership-desk') return await handleReadershipDesk(request, context, now);
+    if (route === 'recovery-desk') return await handleRecoveryDesk(request, context, now);
+    if (route === 'release-desk') {
+      if (request.method !== 'GET') return methodNotAllowed('GET');
+      return json({ release: await latestVerifiedRelease(context.env?.SECOND_INK_RELEASE_REPOSITORY || undefined) });
+    }
     if (route === 'field-notes-desk') return await handleFieldNoteDesk(request, context);
     return await (route === 'monthly-note'
       ? handleMonthlyNote(request, context, now)
